@@ -1,0 +1,26 @@
+#dim Version[4]
+#define ApplicationName 'UniversalScanner'
+#define ApplicationExe 'UniversalScanner.exe'
+#expr ParseVersion("UniversalScanner.exe", Version[0], Version[1], Version[2], Version[3])
+
+
+[Setup]
+AppName={#ApplicationName}
+AppVersion={#Version[0]}.{#Version[1]}
+AppPublisher=Anan Awwad
+VersionInfoVersion={#Version[0]}.{#Version[1]}.{#Version[2]}.{#Version[3]}
+VersionInfoCopyright=Anan Awwad
+DefaultDirName={commonpf}\{#ApplicationName}
+DefaultGroupName={#ApplicationName}
+UninstallDisplayIcon={app}\{#ApplicationExe}
+Compression=lzma2
+SolidCompression=yes
+OutputBaseFilename={#ApplicationName} Setup
+OutputDir=.
+
+[Files]
+Source: "UniversalScanner.exe"; DestDir: "{app}"
+
+[Icons]
+Name: "{group}\{#ApplicationName}"; Filename: "{app}\{#ApplicationExe}"
+Name: "{group}\Uninstall {#ApplicationName}"; Filename: "{uninstallexe}"

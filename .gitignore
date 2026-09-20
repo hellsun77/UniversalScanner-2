@@ -1,0 +1,111 @@
+# Build outputs
+bin/
+obj/
+Debug/
+Release/
+x86/
+x64/
+AnyCPU/
+publish/
+dist/
+release/
+build/
+*.exe
+*.dll
+*.pdb
+*.cache
+*.ilk
+*.iobj
+*.ipdb
+*.lastbuildstate
+*.tlog
+*.metagen
+*.resources
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Required native SDK files embedded by the application project
+!UniversalScanner/SDK/**/*.dll
+!UniversalScanner/SDK/**/*.lib
+
+# Visual Studio and IDE state
+.vs/
+.vscode/
+.idea/
+*.rsuser
+*.scc
+*.vssscc
+*.vspscc
+
+# NuGet restore output
+packages/
+*.nupkg
+project.lock.json
+project.assets.json
+
+# Logs, diagnostics, packet captures, and local test evidence
+*.log
+*.tmp
+*.temp
+*.dmp
+*.trace
+*.pcap
+*.pcapng
+*.har
+*.etl
+evidence/
+scratch/
+scratch_*/
+temp/
+temp_*/
+test_pkg/
+
+# Archives and generated installers
+*.zip
+*.7z
+*.rar
+*.msi
+*.msix
+*.appx
+*.cab
+
+# Local tooling and generated patch files
+*.bak
+*.orig
+*.rej
+*.patch
+patches.txt
+diff*.txt
+gitlog.txt
+
+# Local machine, assistant, and private notes
+.agents/
+.claude/
+AI_AGENT_BUILD_HANDOFF.md
+MENU_INSPECTION_REPORT.md
+OnvifDateTime_Diagnostics.txt
+QueueOuiLookup.txt
+
+# Secrets and machine-specific configuration
+*.secret
+*.secrets
+*.key
+*.pem
+*.pfx
+*.p12
+*.cer
+*.crt
+*.env
+*.env.*
+secrets.json
+appsettings.*.json
+*.PublishSettings
+*.pubxml.user
+
+# Windows noise
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/

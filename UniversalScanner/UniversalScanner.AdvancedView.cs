@@ -1,0 +1,978 @@
+using System;
+using System.Drawing;
+using System.IO;
+using System.Windows.Forms;
+using UniversalScanner.AI;
+
+namespace UniversalScanner
+{
+    public partial class ScannerWindow
+    {
+        private ToolStripMenuItem normalViewToolStripMenuItem;
+        private ToolStripMenuItem advancedViewToolStripMenuItem;
+        private ToolStripMenuItem createAiKnowledgeDatabaseToolStripMenuItem;
+        private ToolStripMenuItem loadAiKnowledgeDatabaseToolStripMenuItem;
+        private ToolStripMenuItem unloadAiKnowledgeDatabaseToolStripMenuItem;
+        private ToolStripMenuItem treatSelectedDeviceAsBrandMenuItem;
+        private Panel advancedViewPanel;
+        private Label advancedViewTitleLabel;
+        private Label advancedViewStatusLabel;
+        private Label advancedViewDatabaseLabel;
+        private Label advancedSelectedDeviceLabel;
+        private Label advancedConfidenceLabel;
+        private Label advancedSaveStatusLabel;
+        private Button saveSelectedFingerprintButton;
+        private long selectedFingerprintObservationId;
+        private string selectedBrandOverride;
+        private bool advancedOverrideRefreshQueued;
+        private bool advancedAutoLearnQueued;
+        private const string BrandOverrideDisplaySuffix = " [AI Override]";
+        private readonly KnowledgeBase aiKnowledgeBase = new KnowledgeBase();
+        private readonly DeviceClassifier aiDeviceClassifier = new DeviceClassifier();
+
+        private void InitializeAdvancedArchitecture()
+        {
+            InitializeAdvancedToolsMenu();
+            BuildAdvancedViewPanel();
+            AddTreatAsBrandRightClickMenu();
+            HookAdvancedBrandOverrideRefresh();
+            LoadOrCreateDefaultAiKnowledgeDatabase();
+            ApplyViewVisibility();
+        }
+
+        private void InitializeAdvancedToolsMenu()
+        {
+            normalViewToolStripMenuItem = new ToolStripMenuItem();
+            normalViewToolStripMenuItem.CheckOnClick = true;
+            normalViewToolStripMenuItem.Checked = true;
+            normalViewToolStripMenuItem.Click += (sender, e) => ApplyViewVisibility();
+
+            advancedViewToolStripMenuItem = new ToolStripMenuItem();
+            advancedViewToolStripMenuItem.CheckOnClick = true;
+            advancedViewToolStripMenuItem.Checked = false;
+            advancedViewToolStripMenuItem.Enabled = true;
+            advancedViewToolStripMenuItem.Click += (sender, e) => ApplyViewVisibility();
+
+            createAiKnowledgeDatabaseToolStripMenuItem = new ToolStripMenuItem("Create/Load AI Knowledge Database");
+            createAiKnowledgeDatabaseToolStripMenuItem.Click += createAiKnowledgeDatabaseToolStripMenuItem_Click;
+
+            loadAiKnowledgeDatabaseToolStripMenuItem = new ToolStripMenuItem("Load AI Knowledge Database");
+            loadAiKnowledgeDatabaseToolStripMenuItem.Click += loadAiKnowledgeDatabaseToolStripMenuItem_Click;
+            loadAiKnowledgeDatabaseToolStripMenuItem.Visible = false;
+
+            unloadAiKnowledgeDatabaseToolStripMenuItem = new ToolStripMenuItem("Unload AI Knowledge Database");
+            unloadAiKnowledgeDatabaseToolStripMenuItem.Enabled = false;
+            unloadAiKnowledgeDatabaseToolStripMenuItem.Click += unloadAiKnowledgeDatabaseToolStripMenuItem_Click;
+
+            int insertIndex = 0;
+            toolsToolStripMenuItem.DropDownItems.Insert(insertIndex++, normalViewToolStripMenuItem);
+            toolsToolStripMenuItem.DropDownItems.Insert(insertIndex++, advancedViewToolStripMenuItem);
+            toolsToolStripMenuItem.DropDownItems.Insert(insertIndex++, new ToolStripSeparator());
+            toolsToolStripMenuItem.DropDownItems.Insert(insertIndex++, createAiKnowledgeDatabaseToolStripMenuItem);
+            toolsToolStripMenuItem.DropDownItems.Insert(insertIndex++, unloadAiKnowledgeDatabaseToolStripMenuItem);
+            toolsToolStripMenuItem.DropDownItems.Insert(insertIndex, new ToolStripSeparator());
+
+            if (toolsToolStripMenuItem.DropDown is ToolStripDropDownMenu dropDownMenu)
+                dropDownMenu.ShowCheckMargin = true;
+
+            UpdateViewMenuText();
+        }
+
+        private void BuildAdvancedViewPanel()
+        {
+            advancedViewPanel = new Panel
+            {
+                BackColor = Color.FromArgb(250, 252, 255),
+                BorderStyle = BorderStyle.FixedSingle,
+                Visible = false
+            };
+
+            advancedViewTitleLabel = new Label
+            {
+                AutoSize = false,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(28, 61, 108),
+                Text = "Advanced Device Analysis"
+            };
+
+            advancedViewStatusLabel = new Label
+            {
+                AutoSize = false,
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                ForeColor = Color.FromArgb(29, 39, 53),
+                Text = "Fingerprint, classifier, confidence, and protocol analysis scaffolding is ready."
+            };
+
+            advancedViewDatabaseLabel = new Label
+            {
+                AutoSize = false,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
+                ForeColor = Color.FromArgb(82, 96, 112),
+                Text = "AI knowledge database: not loaded"
+            };
+
+            advancedSelectedDeviceLabel = new Label
+            {
+                AutoSize = false,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
+                ForeColor = Color.FromArgb(29, 39, 53),
+                Text = "Selected device: none"
+            };
+
+            advancedConfidenceLabel = new Label
+            {
+                AutoSize = false,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
+                ForeColor = Color.FromArgb(29, 39, 53),
+                Text = "Classification confidence: 0%"
+            };
+
+            saveSelectedFingerprintButton = new Button
+            {
+                Text = "Save Fingerprint",
+                Enabled = false
+            };
+            saveSelectedFingerprintButton.Click += saveSelectedFingerprintButton_Click;
+
+            advancedSaveStatusLabel = new Label
+            {
+                AutoSize = false,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
+                ForeColor = Color.FromArgb(82, 96, 112),
+                Text = "Fingerprint not saved"
+            };
+
+            advancedViewPanel.Controls.Add(advancedViewTitleLabel);
+            advancedViewPanel.Controls.Add(advancedViewStatusLabel);
+            advancedViewPanel.Controls.Add(advancedViewDatabaseLabel);
+            advancedViewPanel.Controls.Add(advancedSelectedDeviceLabel);
+            advancedViewPanel.Controls.Add(advancedConfidenceLabel);
+            advancedViewPanel.Controls.Add(saveSelectedFingerprintButton);
+            advancedViewPanel.Controls.Add(advancedSaveStatusLabel);
+            Controls.Add(advancedViewPanel);
+            Controls.SetChildIndex(advancedViewPanel, 0);
+            UpdateAdvancedSelectedDevicePanel();
+        }
+
+        private void AddTreatAsBrandRightClickMenu()
+        {
+            if (rightClickMenu == null || treatSelectedDeviceAsBrandMenuItem != null)
+                return;
+
+            treatSelectedDeviceAsBrandMenuItem = new ToolStripMenuItem("Treat as Brand");
+
+            foreach (string brand in BrandEngineMapper.GetSupportedBrands())
+            {
+                string selectedBrand = brand;
+                ToolStripMenuItem brandItem = new ToolStripMenuItem(selectedBrand);
+                brandItem.Click += (sender, e) => TreatSelectedDeviceAsBrand(selectedBrand);
+                treatSelectedDeviceAsBrandMenuItem.DropDownItems.Add(brandItem);
+            }
+
+            treatSelectedDeviceAsBrandMenuItem.DropDownItems.Add(new ToolStripSeparator());
+            treatSelectedDeviceAsBrandMenuItem.DropDownItems.Add("Clear Brand Override", null, clearBrandOverrideToolStripMenuItem_Click);
+
+            int insertIndex = Math.Min(5, rightClickMenu.Items.Count);
+            rightClickMenu.Items.Insert(insertIndex, treatSelectedDeviceAsBrandMenuItem);
+        }
+
+        private void ApplyViewVisibility()
+        {
+            if (normalViewToolStripMenuItem == null || advancedViewToolStripMenuItem == null)
+                return;
+
+            if (!normalViewToolStripMenuItem.Checked && !advancedViewToolStripMenuItem.Checked)
+                normalViewToolStripMenuItem.Checked = true;
+
+            UpdateViewMenuText();
+            UpdateAdvancedToolsAvailability();
+            dataGridView1.Visible = normalViewToolStripMenuItem.Checked;
+
+            if (advancedViewPanel != null)
+            {
+                advancedViewPanel.Visible = advancedViewToolStripMenuItem.Checked;
+                if (!advancedViewPanel.Visible)
+                    advancedViewPanel.SendToBack();
+            }
+
+            UpdateMainDesignLayout();
+        }
+
+        private void UpdateViewMenuText()
+        {
+            if (normalViewToolStripMenuItem != null)
+                normalViewToolStripMenuItem.Text = (normalViewToolStripMenuItem.Checked ? "☑ " : "☐ ") + "Normal View";
+
+            if (advancedViewToolStripMenuItem != null)
+                advancedViewToolStripMenuItem.Text = (advancedViewToolStripMenuItem.Checked ? "☑ " : "☐ ") + "Advanced View";
+        }
+
+        private void UpdateAdvancedToolsAvailability()
+        {
+            bool advancedEnabled = advancedViewToolStripMenuItem != null && advancedViewToolStripMenuItem.Checked;
+
+            if (createAiKnowledgeDatabaseToolStripMenuItem != null)
+                createAiKnowledgeDatabaseToolStripMenuItem.Enabled = advancedEnabled;
+
+            if (loadAiKnowledgeDatabaseToolStripMenuItem != null)
+                loadAiKnowledgeDatabaseToolStripMenuItem.Enabled = advancedEnabled;
+
+            if (unloadAiKnowledgeDatabaseToolStripMenuItem != null)
+                unloadAiKnowledgeDatabaseToolStripMenuItem.Enabled = advancedEnabled && aiKnowledgeBase.IsLoaded;
+
+            if (saveSelectedFingerprintButton != null)
+                saveSelectedFingerprintButton.Enabled = advancedEnabled && aiKnowledgeBase.IsLoaded && GetAdvancedSelectedDeviceRow() != null && selectedFingerprintObservationId == 0;
+
+            if (treatSelectedDeviceAsBrandMenuItem != null)
+                treatSelectedDeviceAsBrandMenuItem.Enabled = aiKnowledgeBase.IsLoaded && GetAdvancedSelectedDeviceRow() != null;
+        }
+
+        private void UpdateAdvancedViewLayout(int contentTop, int width, int statusHeight)
+        {
+            if (advancedViewPanel == null || !advancedViewPanel.Visible)
+                return;
+
+            bool normalVisible = dataGridView1 != null && dataGridView1.Visible;
+            int availableHeight = Math.Max(120, ClientSize.Height - contentTop - statusHeight);
+            int panelHeight = normalVisible ? Math.Min(190, Math.Max(130, availableHeight / 3)) : availableHeight;
+            int panelTop = normalVisible ? ClientSize.Height - statusHeight - panelHeight : contentTop;
+
+            advancedViewPanel.SetBounds(0, panelTop, width, panelHeight);
+            advancedViewTitleLabel.SetBounds(18, 14, Math.Max(200, width - 36), 24);
+            advancedViewStatusLabel.SetBounds(18, 44, Math.Max(200, width - 36), 22);
+            advancedViewDatabaseLabel.SetBounds(18, 72, Math.Max(200, width - 36), 22);
+            advancedSelectedDeviceLabel.SetBounds(18, 102, Math.Max(200, width - 36), 22);
+            advancedConfidenceLabel.SetBounds(18, 130, Math.Max(200, width - 36), 22);
+            saveSelectedFingerprintButton.SetBounds(18, 158, 130, 26);
+            advancedSaveStatusLabel.SetBounds(164, 160, Math.Max(200, width - 182), 22);
+        }
+
+        private int GetAdvancedViewReservedHeight(int contentTop, int statusHeight)
+        {
+            if (advancedViewPanel == null || !advancedViewPanel.Visible || dataGridView1 == null || !dataGridView1.Visible)
+                return 0;
+
+            int availableHeight = Math.Max(120, ClientSize.Height - contentTop - statusHeight);
+            return Math.Min(190, Math.Max(130, availableHeight / 3));
+        }
+
+        private void loadAiKnowledgeDatabaseToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            LoadOrCreateDefaultAiKnowledgeDatabase();
+        }
+
+        private void createAiKnowledgeDatabaseToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                LoadOrCreateDefaultAiKnowledgeDatabase();
+                _ = ShowStatusAsync("AI knowledge database is ready.", 3000);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    "The AI knowledge database could not be prepared.\r\n\r\n" + ex.Message,
+                    "AI Knowledge Database",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
+        private void unloadAiKnowledgeDatabaseToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            aiKnowledgeBase.Unload();
+            UpdateAiKnowledgeDatabaseStatus();
+            _ = ShowStatusAsync("AI knowledge database unloaded.", 2500);
+        }
+
+        private void UpdateAiKnowledgeDatabaseStatus()
+        {
+            bool loaded = aiKnowledgeBase.IsLoaded;
+
+            UpdateAdvancedToolsAvailability();
+
+            if (advancedViewDatabaseLabel != null)
+            {
+                advancedViewDatabaseLabel.Text = loaded
+                    ? "AI knowledge database: " + aiKnowledgeBase.DatabasePath
+                    : "AI knowledge database: not loaded";
+            }
+
+            ApplyAiBrandOverridesToVisibleRows();
+            QueueAutoLearnVisibleRows();
+            UpdateAdvancedSelectedDevicePanel();
+        }
+
+        private void LoadOrCreateDefaultAiKnowledgeDatabase()
+        {
+            string databasePath = GetDefaultAiKnowledgeDatabasePath();
+
+            if (File.Exists(databasePath))
+                aiKnowledgeBase.Load(databasePath);
+            else
+                aiKnowledgeBase.Create(databasePath);
+
+            UpdateAiKnowledgeDatabaseStatus();
+        }
+
+        private string GetDefaultAiKnowledgeDatabasePath()
+        {
+            return Path.Combine(Application.StartupPath, "UniversalScanner_AI_Knowledge.db");
+        }
+
+        private void UpdateAdvancedSelectedDevicePanel()
+        {
+            if (advancedSelectedDeviceLabel == null || advancedConfidenceLabel == null || dataGridView1 == null)
+                return;
+
+            DataGridViewRow selectedRow = GetAdvancedSelectedDeviceRow();
+            if (selectedRow == null)
+            {
+                selectedFingerprintObservationId = 0;
+                selectedBrandOverride = "";
+                advancedSelectedDeviceLabel.Text = "Selected device: none";
+                advancedConfidenceLabel.Text = "Classification confidence: 0%";
+                if (advancedSaveStatusLabel != null)
+                    advancedSaveStatusLabel.Text = "Select one device to save its fingerprint.";
+                UpdateAdvancedToolsAvailability();
+                return;
+            }
+
+            DeviceFingerprint fingerprint = BuildSelectedDeviceFingerprint(selectedRow);
+            ApplyStoredBrandOverrideToRow(fingerprint, selectedRow);
+            DeviceClassification classification = aiDeviceClassifier.Classify(fingerprint, aiKnowledgeBase);
+            bool autoLearned = AutoLearnFingerprintIfReady(fingerprint);
+            advancedSelectedDeviceLabel.Text =
+                "Selected device: " +
+                SafeDisplay(fingerprint.IpAddress) +
+                " | " + SafeDisplay(fingerprint.Vendor) +
+                " | " + SafeDisplay(fingerprint.Model) +
+                " | " + SafeDisplay(fingerprint.MacAddress) +
+                " | " + SafeDisplay(fingerprint.OnvifProfile);
+
+            advancedConfidenceLabel.Text =
+                "Classification confidence: " +
+                Math.Round(classification.Confidence * 100.0) +
+                "% | Knowledge DB: " +
+                (classification.UsedKnowledgeBase ? "loaded" : "not loaded") +
+                BuildLearnedMatchText(classification) +
+                BuildBrandSuggestionText(classification);
+
+            if (!autoLearned)
+                UpdateFingerprintSaveStatus(fingerprint);
+
+            UpdateAdvancedToolsAvailability();
+        }
+
+        private void saveSelectedFingerprintButton_Click(object sender, EventArgs e)
+        {
+            DataGridViewRow selectedRow = GetAdvancedSelectedDeviceRow();
+            if (selectedRow == null)
+                return;
+
+            try
+            {
+                DeviceFingerprint fingerprint = BuildSelectedDeviceFingerprint(selectedRow);
+                long id = aiKnowledgeBase.SaveFingerprintObservation(fingerprint);
+                selectedFingerprintObservationId = id;
+
+                if (advancedSaveStatusLabel != null)
+                    advancedSaveStatusLabel.Text = "Fingerprint saved to DB as observation #" + id + ".";
+
+                UpdateAdvancedToolsAvailability();
+                _ = ShowStatusAsync("Selected device fingerprint saved.", 2500);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    "The selected fingerprint could not be saved.\r\n\r\n" + ex.Message,
+                    "AI Knowledge Database",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
+        private static string BuildLearnedMatchText(DeviceClassification classification)
+        {
+            if (classification == null || classification.LearnedMatch == null)
+                return "";
+
+            LearnedFingerprintMatch match = classification.LearnedMatch;
+            return " | Learned match: observation #" +
+                match.ObservationId +
+                " (" +
+                Math.Round(match.MatchScore * 100.0) +
+                "%, " +
+                match.MatchReason +
+                ")";
+        }
+
+        private static string BuildBrandSuggestionText(DeviceClassification classification)
+        {
+            if (classification == null || classification.BrandSuggestion == null)
+                return "";
+
+            LearnedBrandSuggestion suggestion = classification.BrandSuggestion;
+            return " | AI suggestion: probably " +
+                suggestion.Brand +
+                " (" +
+                Math.Round(suggestion.Confidence * 100.0) +
+                "%, " +
+                suggestion.Reason +
+                ")";
+        }
+
+        private void UpdateFingerprintSaveStatus(DeviceFingerprint fingerprint)
+        {
+            if (advancedSaveStatusLabel == null)
+                return;
+
+            selectedFingerprintObservationId = 0;
+
+            if (!aiKnowledgeBase.IsLoaded)
+            {
+                advancedSaveStatusLabel.Text = "Load the AI knowledge database before saving fingerprints.";
+                return;
+            }
+
+            long existingId = aiKnowledgeBase.FindLatestFingerprintObservationId(fingerprint);
+            selectedFingerprintObservationId = existingId;
+            advancedSaveStatusLabel.Text = existingId > 0
+                ? "Fingerprint already saved in DB as observation #" + existingId + "."
+                : "Fingerprint not saved yet.";
+        }
+
+        private bool AutoLearnFingerprintIfReady(DeviceFingerprint fingerprint)
+        {
+            selectedFingerprintObservationId = 0;
+
+            bool advancedEnabled = advancedViewToolStripMenuItem != null && advancedViewToolStripMenuItem.Checked;
+            if (!advancedEnabled || !aiKnowledgeBase.IsLoaded || fingerprint == null)
+                return false;
+
+            try
+            {
+                FingerprintPersistenceResult result = aiKnowledgeBase.SaveOrUpdateFingerprintObservation(fingerprint);
+                selectedFingerprintObservationId = result.ObservationId;
+
+                if (advancedSaveStatusLabel != null)
+                {
+                    advancedSaveStatusLabel.Text = result.Created
+                        ? BuildAutoLearnStatus("AI learned this fingerprint", result.ObservationId)
+                        : BuildAutoLearnStatus("AI updated saved fingerprint", result.ObservationId);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (advancedSaveStatusLabel != null)
+                    advancedSaveStatusLabel.Text = "AI could not update the knowledge DB: " + ex.Message;
+
+                return false;
+            }
+        }
+
+        private void ApplyStoredBrandOverrideToRow(DeviceFingerprint fingerprint, DataGridViewRow row)
+        {
+            selectedBrandOverride = "";
+
+            if (!aiKnowledgeBase.IsLoaded || fingerprint == null || row == null)
+                return;
+
+            DeviceBrandOverride brandOverride = aiKnowledgeBase.GetBrandOverride(fingerprint);
+            if (brandOverride == null || string.IsNullOrWhiteSpace(brandOverride.ForcedBrand))
+                return;
+
+            ApplyBrandOverrideToRowAndFingerprint(row, fingerprint, brandOverride.ForcedBrand);
+            selectedBrandOverride = BrandEngineMapper.NormalizeVendor(brandOverride.ForcedBrand);
+        }
+
+        private void ApplyAiBrandOverridesToSelectedRowsForAction()
+        {
+            if (!aiKnowledgeBase.IsLoaded)
+                return;
+
+            foreach (DataGridViewRow row in GetSelectedDeviceRows())
+                ApplyAiBrandOverrideToActionRow(row);
+
+            if (dataGridView1 != null)
+                dataGridView1.Refresh();
+        }
+
+        private void ApplyAiBrandOverrideToActionRow(DataGridViewRow row)
+        {
+            if (!aiKnowledgeBase.IsLoaded || row == null || row.IsNewRow)
+                return;
+
+            DeviceFingerprint fingerprint = BuildSelectedDeviceFingerprint(row);
+            ApplyStoredBrandOverrideToRow(fingerprint, row);
+        }
+
+        private void HookAdvancedBrandOverrideRefresh()
+        {
+            if (dataGridView1 == null)
+                return;
+
+            dataGridView1.RowsAdded += (sender, e) =>
+            {
+                QueueApplyAiBrandOverridesToVisibleRows();
+                QueueAutoLearnVisibleRows();
+            };
+
+            dataGridView1.CellValueChanged += (sender, e) => QueueAutoLearnVisibleRows();
+        }
+
+        private void QueueApplyAiBrandOverridesToVisibleRows()
+        {
+            if (!aiKnowledgeBase.IsLoaded || dataGridView1 == null || advancedOverrideRefreshQueued)
+                return;
+
+            if (!dataGridView1.IsHandleCreated || dataGridView1.IsDisposed)
+                return;
+
+            advancedOverrideRefreshQueued = true;
+            BeginInvoke(new Action(() =>
+            {
+                advancedOverrideRefreshQueued = false;
+                ApplyAiBrandOverridesToVisibleRows();
+            }));
+        }
+
+        private void ApplyAiBrandOverridesToVisibleRows()
+        {
+            if (!aiKnowledgeBase.IsLoaded || dataGridView1 == null)
+                return;
+
+            foreach (DataGridViewRow row in dataGridView1.Rows)
+                ApplyAiBrandOverrideToActionRow(row);
+
+            dataGridView1.Refresh();
+        }
+
+        private void QueueAutoLearnVisibleRows()
+        {
+            if (!aiKnowledgeBase.IsLoaded || dataGridView1 == null || advancedAutoLearnQueued)
+                return;
+
+            if (!dataGridView1.IsHandleCreated || dataGridView1.IsDisposed)
+                return;
+
+            advancedAutoLearnQueued = true;
+            BeginInvoke(new Action(() =>
+            {
+                advancedAutoLearnQueued = false;
+                AutoLearnVisibleRows();
+            }));
+        }
+
+        private void AutoLearnVisibleRows()
+        {
+            if (!aiKnowledgeBase.IsLoaded || dataGridView1 == null)
+                return;
+
+            int learned = 0;
+            int updated = 0;
+            int skipped = 0;
+
+            foreach (DataGridViewRow row in dataGridView1.Rows)
+            {
+                if (row == null || row.IsNewRow)
+                    continue;
+
+                DeviceFingerprint fingerprint = BuildSelectedDeviceFingerprint(row);
+                if (!HasLearnableFingerprintIdentity(fingerprint))
+                {
+                    skipped++;
+                    continue;
+                }
+
+                try
+                {
+                    FingerprintPersistenceResult result = aiKnowledgeBase.SaveOrUpdateFingerprintObservation(fingerprint);
+                    if (result.Created)
+                        learned++;
+                    else
+                        updated++;
+                }
+                catch
+                {
+                    skipped++;
+                }
+            }
+
+            if (advancedViewToolStripMenuItem != null &&
+                advancedViewToolStripMenuItem.Checked &&
+                advancedSaveStatusLabel != null &&
+                learned + updated > 0)
+            {
+                advancedSaveStatusLabel.Text =
+                    "AI auto-learned scan rows. New: " +
+                    learned +
+                    ", updated: " +
+                    updated +
+                    (skipped > 0 ? ", skipped: " + skipped : "") +
+                    ".";
+            }
+
+            RefreshSelectedFingerprintSavedState();
+            UpdateAdvancedToolsAvailability();
+        }
+
+        private void RefreshSelectedFingerprintSavedState()
+        {
+            selectedFingerprintObservationId = 0;
+
+            if (!aiKnowledgeBase.IsLoaded)
+                return;
+
+            DataGridViewRow selectedRow = GetAdvancedSelectedDeviceRow();
+            if (selectedRow == null)
+                return;
+
+            DeviceFingerprint fingerprint = BuildSelectedDeviceFingerprint(selectedRow);
+            selectedFingerprintObservationId = aiKnowledgeBase.FindLatestFingerprintObservationId(fingerprint);
+        }
+
+        private static bool HasLearnableFingerprintIdentity(DeviceFingerprint fingerprint)
+        {
+            if (fingerprint == null)
+                return false;
+
+            bool hasDeviceIdentity =
+                !string.IsNullOrWhiteSpace(fingerprint.MacAddress) ||
+                !string.IsNullOrWhiteSpace(fingerprint.IpAddress);
+
+            bool hasDeviceDetails =
+                !string.IsNullOrWhiteSpace(fingerprint.Vendor) ||
+                !string.IsNullOrWhiteSpace(fingerprint.Model) ||
+                !string.IsNullOrWhiteSpace(fingerprint.Protocol) ||
+                !string.IsNullOrWhiteSpace(fingerprint.OnvifProfile);
+
+            return hasDeviceIdentity && hasDeviceDetails;
+        }
+
+        private string BuildAutoLearnStatus(string action, long observationId)
+        {
+            if (!string.IsNullOrWhiteSpace(selectedBrandOverride))
+                return action + " as observation #" + observationId + " with brand override: " + selectedBrandOverride + ".";
+
+            return action + " as observation #" + observationId + ".";
+        }
+
+        private void TreatSelectedDeviceAsBrand(string brand)
+        {
+            DataGridViewRow selectedRow = GetAdvancedSelectedDeviceRow();
+            if (selectedRow == null)
+                return;
+
+            try
+            {
+                DeviceFingerprint fingerprint = BuildSelectedDeviceFingerprint(selectedRow);
+                aiKnowledgeBase.SaveBrandOverride(fingerprint, brand, fingerprint.Vendor, fingerprint.Protocol);
+                ApplyBrandOverrideToRowAndFingerprint(selectedRow, fingerprint, brand);
+                aiKnowledgeBase.SaveOrUpdateFingerprintObservation(fingerprint);
+
+                if (advancedSaveStatusLabel != null)
+                    advancedSaveStatusLabel.Text = "AI brand override saved: treat this device as " + brand + ".";
+
+                UpdateAdvancedSelectedDevicePanel();
+                _ = ShowStatusAsync("AI will treat this device as " + brand + ".", 3000);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    "The brand override could not be saved.\r\n\r\n" + ex.Message,
+                    "AI Brand Override",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
+        private void clearBrandOverrideToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            DataGridViewRow selectedRow = GetAdvancedSelectedDeviceRow();
+            if (selectedRow == null)
+                return;
+
+            try
+            {
+                DeviceFingerprint fingerprint = BuildSelectedDeviceFingerprint(selectedRow);
+                DeviceBrandOverride brandOverride = aiKnowledgeBase.GetBrandOverride(fingerprint);
+                aiKnowledgeBase.ClearBrandOverride(fingerprint);
+                RestoreRowBrandAfterClearingOverride(selectedRow, brandOverride);
+                aiKnowledgeBase.SaveOrUpdateFingerprintObservation(BuildSelectedDeviceFingerprint(selectedRow));
+
+                if (advancedSaveStatusLabel != null)
+                    advancedSaveStatusLabel.Text = "AI brand override cleared for this device.";
+
+                UpdateAdvancedSelectedDevicePanel();
+                _ = ShowStatusAsync("AI brand override cleared.", 2500);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    "The brand override could not be cleared.\r\n\r\n" + ex.Message,
+                    "AI Brand Override",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
+        private void ApplyBrandOverrideToRowAndFingerprint(DataGridViewRow row, DeviceFingerprint fingerprint, string brand)
+        {
+            if (row == null || fingerprint == null || string.IsNullOrWhiteSpace(brand))
+                return;
+
+            string normalizedBrand = BrandEngineMapper.NormalizeVendor(brand);
+            if (string.IsNullOrWhiteSpace(normalizedBrand))
+                normalizedBrand = brand.Trim();
+
+            SetCellText(row, Columns.Vendor, normalizedBrand + BrandOverrideDisplaySuffix);
+            SetCellText(row, Columns.Protocol, normalizedBrand);
+            MarkBrandOverrideRow(row, normalizedBrand);
+            fingerprint.Vendor = normalizedBrand;
+            fingerprint.Protocol = normalizedBrand;
+            fingerprint.AddSignal("brand_override", normalizedBrand);
+        }
+
+        private void MarkBrandOverrideRow(DataGridViewRow row, string brand)
+        {
+            if (row == null)
+                return;
+
+            row.DefaultCellStyle.BackColor = Color.FromArgb(255, 248, 220);
+            row.DefaultCellStyle.ForeColor = Color.FromArgb(84, 57, 0);
+
+            string tooltip = "AI brand override active: treated as " + brand + ".";
+            SetCellToolTip(row, Columns.Vendor, tooltip);
+            SetCellToolTip(row, Columns.Protocol, tooltip);
+        }
+
+        private void ClearBrandOverrideMarkerFromRow(DataGridViewRow row)
+        {
+            if (row == null)
+                return;
+
+            string vendor = GetCellText(row, Columns.Vendor);
+            if (vendor.EndsWith(BrandOverrideDisplaySuffix, StringComparison.OrdinalIgnoreCase))
+                SetCellText(row, Columns.Vendor, vendor.Substring(0, vendor.Length - BrandOverrideDisplaySuffix.Length));
+
+            row.DefaultCellStyle.BackColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.BackColor : Color.White;
+            row.DefaultCellStyle.ForeColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.ForeColor : Color.Black;
+            SetCellToolTip(row, Columns.Vendor, "");
+            SetCellToolTip(row, Columns.Protocol, "");
+        }
+
+        private void RestoreRowBrandAfterClearingOverride(DataGridViewRow row, DeviceBrandOverride brandOverride)
+        {
+            if (row == null)
+                return;
+
+            string restoredVendor = brandOverride == null ? "" : brandOverride.OriginalVendor;
+            string restoredProtocol = brandOverride == null ? "" : brandOverride.OriginalProtocol;
+
+            if (!string.IsNullOrWhiteSpace(restoredVendor) || !string.IsNullOrWhiteSpace(restoredProtocol))
+            {
+                if (string.IsNullOrWhiteSpace(restoredVendor))
+                    restoredVendor = restoredProtocol;
+
+                if (string.IsNullOrWhiteSpace(restoredProtocol))
+                    restoredProtocol = restoredVendor;
+
+                SetCellText(row, Columns.Vendor, RemoveOverrideDisplaySuffix(restoredVendor));
+                SetCellText(row, Columns.Protocol, RemoveOverrideDisplaySuffix(restoredProtocol));
+            }
+            else
+            {
+                string restoredBrand = GetBestDetectedBrandAfterOverride(row);
+                if (!string.IsNullOrWhiteSpace(restoredBrand))
+                {
+                    SetCellText(row, Columns.Vendor, restoredBrand);
+                    SetCellText(row, Columns.Protocol, restoredBrand);
+                }
+                else
+                {
+                    ClearBrandOverrideMarkerFromRow(row);
+                }
+            }
+
+            row.DefaultCellStyle.BackColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.BackColor : Color.White;
+            row.DefaultCellStyle.ForeColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.ForeColor : Color.Black;
+            SetCellToolTip(row, Columns.Vendor, "");
+            SetCellToolTip(row, Columns.Protocol, "");
+        }
+
+        private string GetBestDetectedBrandAfterOverride(DataGridViewRow row)
+        {
+            string ouiBrand = BrandEngineMapper.NormalizeVendor(GetCellText(row, Columns.MACVendor));
+            if (IsKnownBrand(ouiBrand))
+                return ouiBrand;
+
+            string modelBrand = GuessBrandFromModel(GetCellText(row, Columns.Type));
+            if (IsKnownBrand(modelBrand))
+                return modelBrand;
+
+            string uniqueIdBrand = BrandEngineMapper.NormalizeVendor(GetCellText(row, Columns.UniqueId));
+            if (IsKnownBrand(uniqueIdBrand))
+                return uniqueIdBrand;
+
+            string vendor = GetCellText(row, Columns.Vendor);
+            if (vendor.EndsWith(BrandOverrideDisplaySuffix, StringComparison.OrdinalIgnoreCase))
+                vendor = vendor.Substring(0, vendor.Length - BrandOverrideDisplaySuffix.Length);
+
+            return "";
+        }
+
+        private static string RemoveOverrideDisplaySuffix(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return "";
+
+            string trimmed = value.Trim();
+            return trimmed.EndsWith(BrandOverrideDisplaySuffix, StringComparison.OrdinalIgnoreCase)
+                ? trimmed.Substring(0, trimmed.Length - BrandOverrideDisplaySuffix.Length)
+                : trimmed;
+        }
+
+        private static bool IsKnownBrand(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+
+            foreach (string brand in BrandEngineMapper.GetSupportedBrands())
+            {
+                if (brand.Equals(value.Trim(), StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static string GuessBrandFromModel(string model)
+        {
+            if (string.IsNullOrWhiteSpace(model))
+                return "";
+
+            string value = model.Trim();
+            if (value.StartsWith("DS-", StringComparison.OrdinalIgnoreCase) ||
+                value.StartsWith("iDS-", StringComparison.OrdinalIgnoreCase))
+                return "Hikvision";
+
+            return BrandEngineMapper.NormalizeVendor(value);
+        }
+
+        private DataGridViewRow GetAdvancedSelectedDeviceRow()
+        {
+            if (dataGridView1 == null)
+                return null;
+
+            if (dataGridView1.SelectedRows.Count == 1 && !dataGridView1.SelectedRows[0].IsNewRow)
+                return dataGridView1.SelectedRows[0];
+
+            if (dataGridView1.CurrentRow != null && !dataGridView1.CurrentRow.IsNewRow)
+                return dataGridView1.CurrentRow;
+
+            if (dataGridView1.SelectedCells.Count > 0)
+            {
+                int rowIndex = dataGridView1.SelectedCells[0].RowIndex;
+                if (rowIndex >= 0 && rowIndex < dataGridView1.Rows.Count && !dataGridView1.Rows[rowIndex].IsNewRow)
+                    return dataGridView1.Rows[rowIndex];
+            }
+
+            return null;
+        }
+
+        private DeviceFingerprint BuildSelectedDeviceFingerprint(DataGridViewRow row)
+        {
+            DeviceFingerprint fingerprint = new DeviceFingerprint
+            {
+                Vendor = GetFingerprintCellText(row, Columns.Vendor),
+                Protocol = GetFingerprintCellText(row, Columns.Protocol),
+                FirmwareVersion = GetCellText(row, Columns.Version),
+                IpAddress = GetCellText(row, Columns.IPAddress),
+                MacAddress = GetCellText(row, Columns.MAC),
+                Model = GetCellText(row, Columns.Type),
+                OnvifProfile = GetCellText(row, Columns.OnvifProfile)
+            };
+
+            fingerprint.AddSignal("activation", GetCellText(row, Columns.Activation));
+            fingerprint.AddSignal("oui_vendor", GetCellText(row, Columns.MACVendor));
+            fingerprint.AddSignal("unique_id", GetCellText(row, Columns.UniqueId));
+            fingerprint.AddSignal("ping", GetCellText(row, Columns.Ping));
+
+            return fingerprint;
+        }
+
+        private string GetCellText(DataGridViewRow row, Columns column)
+        {
+            if (row == null)
+                return "";
+
+            string columnName = ColumnNames[(int)column];
+            if (row.DataGridView != null && row.DataGridView.Columns.Contains(columnName))
+            {
+                object namedValue = row.Cells[columnName].Value;
+                return namedValue == null ? "" : namedValue.ToString();
+            }
+
+            int fallbackIndex = (int)column;
+            if (fallbackIndex < 0 || fallbackIndex >= row.Cells.Count)
+                return "";
+
+            return row.Cells[fallbackIndex].Value == null ? "" : row.Cells[fallbackIndex].Value.ToString();
+        }
+
+        private string GetFingerprintCellText(DataGridViewRow row, Columns column)
+        {
+            string value = GetCellText(row, column);
+            if (column == Columns.Vendor && value.EndsWith(BrandOverrideDisplaySuffix, StringComparison.OrdinalIgnoreCase))
+                return value.Substring(0, value.Length - BrandOverrideDisplaySuffix.Length);
+
+            return value;
+        }
+
+        private void SetCellText(DataGridViewRow row, Columns column, string value)
+        {
+            if (row == null)
+                return;
+
+            string columnName = ColumnNames[(int)column];
+            if (row.DataGridView != null && row.DataGridView.Columns.Contains(columnName))
+            {
+                row.Cells[columnName].Value = value ?? "";
+                return;
+            }
+
+            int fallbackIndex = (int)column;
+            if (fallbackIndex < 0 || fallbackIndex >= row.Cells.Count)
+                return;
+
+            row.Cells[fallbackIndex].Value = value ?? "";
+        }
+
+        private void SetCellToolTip(DataGridViewRow row, Columns column, string value)
+        {
+            if (row == null)
+                return;
+
+            string columnName = ColumnNames[(int)column];
+            if (row.DataGridView != null && row.DataGridView.Columns.Contains(columnName))
+            {
+                row.Cells[columnName].ToolTipText = value ?? "";
+                return;
+            }
+
+            int fallbackIndex = (int)column;
+            if (fallbackIndex < 0 || fallbackIndex >= row.Cells.Count)
+                return;
+
+            row.Cells[fallbackIndex].ToolTipText = value ?? "";
+        }
+
+        private static string SafeDisplay(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? "Unknown" : value.Trim();
+        }
+    }
+}
