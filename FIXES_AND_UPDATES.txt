@@ -83,3 +83,9 @@ Entries
 - Summary: The scanner no longer creates or loads the AI knowledge database during startup, so the main app can open from a single EXE even when SQLite native dependencies are not beside it. AI learning remains available from the Tools menu when its database dependencies are present.
 - Verification: Release x86 app build passed.
 - Commit: included in the commit that contains this entry.
+
+[2026-09-22] fix: prompt for Dahua VLC credentials when Universal Login fails
+- Files changed: UniversalScanner/RtspLiveViewForm.cs, UniversalScanner/UniversalScanner.cs, FIXES_AND_UPDATES.txt
+- Summary: Dahua VLC viewing now checks RTSP authentication before launching VLC. If the saved Universal Login credentials are rejected, single-camera viewing returns to the credential form and mosaic viewing prompts for corrected credentials before opening VLC.
+- Verification: Release x86 app build passed.
+- Commit: included in the commit that contains this entry.

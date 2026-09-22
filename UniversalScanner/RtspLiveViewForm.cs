@@ -317,12 +317,18 @@ namespace UniversalScanner
             {
                 string url = BuildRtspUrl();
 
-                // Do not use RTSP OPTIONS as an authentication gate. Some
-                // Hikvision/NVR firmware rejects OPTIONS while accepting the
-                // DESCRIBE/SETUP/PLAY sequence that VLC uses for playback.
-
                 string un = usernameBox.Text.Trim();
                 string pw = passwordBox.Text;
+
+                if (IsDahuaRtspCandidate() && await IsRtspAuthenticationRejectedAsync(url, un, pw))
+                {
+                    if (quietCredentialFailure)
+                        return false;
+
+                    MessageBox.Show(this, "Authentication failed. Username or password was rejected.", "Show Live by VLC", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    usernameBox.Focus();
+                    return false;
+                }
 
                 ProcessStartInfo startInfo = new ProcessStartInfo();
                 startInfo.FileName = vlcPath;
@@ -433,6 +439,13 @@ namespace UniversalScanner
                    text.Contains("ids-") ||
                    text.Contains("nvr") ||
                    text.Contains("dvr");
+        }
+
+        private bool IsDahuaRtspCandidate()
+        {
+            string text = ((_vendor ?? "") + " " + (_model ?? "")).ToLowerInvariant();
+            return text.Contains("dahua") ||
+                   text.Contains("zhejiang dahua");
         }
 
         private bool ShouldTryHikvisionChannelDiscovery(bool hikvisionCandidate)

@@ -3963,6 +3963,7 @@ namespace UniversalScanner
             List<string> skippedIps = new List<string>();
             List<string> authRejectedIps = new List<string>();
             bool allowSingleRowHikvisionProbe = rows.Count == 1;
+            bool shouldCheckDahuaRtspAuth = rows.Any(row => IsDahuaRow(GetDataRowFromGridRow(row)));
 
             foreach (DataGridViewRow row in rows)
             {
@@ -3973,6 +3974,9 @@ namespace UniversalScanner
             // Hikvision/NVR firmwares reject OPTIONS even when VLC can play the
             // stream with the same credentials.
             string rejectedIp = authRejectedIps.FirstOrDefault() ?? "";
+            if (string.IsNullOrWhiteSpace(rejectedIp) && shouldCheckDahuaRtspAuth)
+                rejectedIp = await FindRejectedRtspCredentialIpAsync(streams, username, password);
+
             if (!string.IsNullOrWhiteSpace(rejectedIp))
             {
                 if (!PromptForVlcCredentials(rejectedIp, ref username, ref password))
@@ -3989,6 +3993,9 @@ namespace UniversalScanner
                 }
 
                 rejectedIp = authRejectedIps.FirstOrDefault() ?? "";
+                if (string.IsNullOrWhiteSpace(rejectedIp) && shouldCheckDahuaRtspAuth)
+                    rejectedIp = await FindRejectedRtspCredentialIpAsync(streams, username, password);
+
                 if (!string.IsNullOrWhiteSpace(rejectedIp))
                 {
                     MessageBox.Show(this, "Authentication failed for " + rejectedIp + ". Please check the Universal Login username and password.", "Show Selected by VLC",
