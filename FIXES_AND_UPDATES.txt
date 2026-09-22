@@ -59,3 +59,9 @@ Entries
 - Summary: Added a project-level text file to record every future fix or update and updated repository instructions so future commits include an entry in the tracking file.
 - Verification: Documentation-only change.
 - Commit: 25ff14d
+
+[2026-09-22] update: copy fixes and updates log to build output
+- Files changed: UniversalScanner/UniversalScanner.csproj, FIXES_AND_UPDATES.txt
+- Summary: Added FIXES_AND_UPDATES.txt as linked project content so it is copied next to UniversalScanner.exe in bin/x86/Release after builds.
+- Verification: Release x86 app build passed and FIXES_AND_UPDATES.txt appeared in bin/x86/Release.
+- Commit: TBD

@@ -363,6 +363,10 @@
   <ItemGroup>
     <Content Include="icon.ico" />
     <Content Include="UniversalScanner.ico" />
+    <Content Include="..\FIXES_AND_UPDATES.txt">
+      <Link>FIXES_AND_UPDATES.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="SDK\**\*.dll" />
