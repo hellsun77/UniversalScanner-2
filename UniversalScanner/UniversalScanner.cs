@@ -3961,29 +3961,11 @@ namespace UniversalScanner
 
             List<VlcMosaicStream> streams = new List<VlcMosaicStream>();
             List<string> skippedIps = new List<string>();
+            bool allowSingleRowHikvisionProbe = rows.Count == 1;
 
             foreach (DataGridViewRow row in rows)
             {
-                string ip = row.Cells[(int)Columns.IPAddress].Value?.ToString() ?? "";
-                if (!IPAddress.TryParse(ip, out IPAddress parsed) || parsed.AddressFamily != AddressFamily.InterNetwork)
-                {
-                    if (!string.IsNullOrWhiteSpace(ip))
-                        skippedIps.Add(ip);
-                    continue;
-                }
-
-                string vendor = row.Cells[(int)Columns.Vendor].Value?.ToString() ?? "";
-                string protocol = row.Cells[(int)Columns.Protocol].Value?.ToString() ?? "";
-                string ouiVendor = row.Cells[(int)Columns.MACVendor].Value?.ToString() ?? "";
-                string model = row.Cells[(int)Columns.Type].Value?.ToString() ?? "";
-                string rtspVendorContext = string.Join(" ", new[] { vendor, protocol, ouiVendor });
-                string path = RtspLiveViewForm.GetRtspPath(rtspVendorContext, model, streamChoice == VlcMosaicStreamChoice.Sub);
-                streams.Add(new VlcMosaicStream
-                {
-                    Title = parsed + "  " + FirstNonEmpty(vendor, model, "Camera") + "  " + (streamChoice == VlcMosaicStreamChoice.Sub ? "Sub" : "Main"),
-                    Url = BuildCredentialedRtspUrl(parsed.ToString(), path, username, password),
-                    ProbeUrl = BuildPlainRtspUrl(parsed.ToString(), path)
-                });
+                await AddVlcStreamsForRowAsync(row, streamChoice, username, password, allowSingleRowHikvisionProbe, streams, skippedIps);
             }
 
             if (streams.Count == 0)
@@ -4008,26 +3990,7 @@ namespace UniversalScanner
 
                 foreach (DataGridViewRow row in rows)
                 {
-                    string ip = row.Cells[(int)Columns.IPAddress].Value?.ToString() ?? "";
-                    if (!IPAddress.TryParse(ip, out IPAddress parsed) || parsed.AddressFamily != AddressFamily.InterNetwork)
-                    {
-                        if (!string.IsNullOrWhiteSpace(ip))
-                            skippedIps.Add(ip);
-                        continue;
-                    }
-
-                    string vendor = row.Cells[(int)Columns.Vendor].Value?.ToString() ?? "";
-                    string protocol = row.Cells[(int)Columns.Protocol].Value?.ToString() ?? "";
-                    string ouiVendor = row.Cells[(int)Columns.MACVendor].Value?.ToString() ?? "";
-                    string model = row.Cells[(int)Columns.Type].Value?.ToString() ?? "";
-                    string rtspVendorContext = string.Join(" ", new[] { vendor, protocol, ouiVendor });
-                    string path = RtspLiveViewForm.GetRtspPath(rtspVendorContext, model, streamChoice == VlcMosaicStreamChoice.Sub);
-                    streams.Add(new VlcMosaicStream
-                    {
-                        Title = parsed + "  " + FirstNonEmpty(vendor, model, "Camera") + "  " + (streamChoice == VlcMosaicStreamChoice.Sub ? "Sub" : "Main"),
-                        Url = BuildCredentialedRtspUrl(parsed.ToString(), path, username, password),
-                        ProbeUrl = BuildPlainRtspUrl(parsed.ToString(), path)
-                    });
+                    await AddVlcStreamsForRowAsync(row, streamChoice, username, password, allowSingleRowHikvisionProbe, streams, skippedIps);
                 }
             }
 
@@ -4046,6 +4009,107 @@ namespace UniversalScanner
                 MessageBox.Show(this, "Failed to open VLC mosaic:\r\n\r\n" + ex.Message, "Show Selected by VLC",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private async Task AddVlcStreamsForRowAsync(
+            DataGridViewRow row,
+            VlcMosaicStreamChoice streamChoice,
+            string username,
+            string password,
+            bool allowGenericHikvisionProbe,
+            List<VlcMosaicStream> streams,
+            List<string> skippedIps)
+        {
+            string ip = row.Cells[(int)Columns.IPAddress].Value?.ToString() ?? "";
+            if (!IPAddress.TryParse(ip, out IPAddress parsed) || parsed.AddressFamily != AddressFamily.InterNetwork)
+            {
+                if (!string.IsNullOrWhiteSpace(ip))
+                    skippedIps.Add(ip);
+                return;
+            }
+
+            string vendor = row.Cells[(int)Columns.Vendor].Value?.ToString() ?? "";
+            string protocol = row.Cells[(int)Columns.Protocol].Value?.ToString() ?? "";
+            string ouiVendor = row.Cells[(int)Columns.MACVendor].Value?.ToString() ?? "";
+            string model = row.Cells[(int)Columns.Type].Value?.ToString() ?? "";
+            string rtspVendorContext = string.Join(" ", new[] { vendor, protocol, ouiVendor });
+            bool useSubStream = streamChoice == VlcMosaicStreamChoice.Sub;
+            string defaultPath = RtspLiveViewForm.GetRtspPath(rtspVendorContext, model, useSubStream);
+
+            if (ShouldExpandHikvisionDvrMosaic(vendor, protocol, ouiVendor, model, defaultPath, allowGenericHikvisionProbe))
+            {
+                try
+                {
+                    List<HikvisionChannel> channels = await HikvisionStreamingHelper.GetChannelsAsync(parsed.ToString(), username, password);
+                    if (channels != null && channels.Count > 1)
+                    {
+                        int streamCountBeforeDvr = streams.Count;
+                        foreach (HikvisionChannel channel in channels)
+                        {
+                            int streamType = SelectHikvisionStreamType(channel, useSubStream);
+                            int streamId;
+                            try
+                            {
+                                streamId = checked((channel.PhysicalChannel * 100) + streamType);
+                            }
+                            catch
+                            {
+                                continue;
+                            }
+
+                            string path = "/Streaming/Channels/" + streamId;
+                            streams.Add(new VlcMosaicStream
+                            {
+                                Title = parsed + "  Camera " + channel.PhysicalChannel + "  " + (useSubStream ? "Sub" : "Main"),
+                                Url = BuildCredentialedRtspUrl(parsed.ToString(), path, username, password),
+                                ProbeUrl = BuildPlainRtspUrl(parsed.ToString(), path)
+                            });
+                        }
+
+                        if (streams.Count > streamCountBeforeDvr)
+                            return;
+                    }
+                }
+                catch
+                {
+                    // Fall back to the normal single-stream path for non-Hikvision devices or devices that block ISAPI.
+                }
+            }
+
+            streams.Add(new VlcMosaicStream
+            {
+                Title = parsed + "  " + FirstNonEmpty(vendor, model, "Camera") + "  " + (useSubStream ? "Sub" : "Main"),
+                Url = BuildCredentialedRtspUrl(parsed.ToString(), defaultPath, username, password),
+                ProbeUrl = BuildPlainRtspUrl(parsed.ToString(), defaultPath)
+            });
+        }
+
+        private static bool ShouldExpandHikvisionDvrMosaic(string vendor, string protocol, string ouiVendor, string model, string defaultPath, bool allowGenericProbe)
+        {
+            string text = string.Join(" ", new[] { vendor, protocol, ouiVendor, model }).ToLowerInvariant();
+            if (text.Contains("hikvision") ||
+                text.Contains("hiwatch") ||
+                text.Contains("hik-connect") ||
+                text.Contains("ds-") ||
+                text.Contains("ids-") ||
+                text.Contains("nvr") ||
+                text.Contains("dvr"))
+                return true;
+
+            return allowGenericProbe && !string.IsNullOrWhiteSpace(defaultPath) &&
+                   defaultPath.StartsWith("/Streaming/Channels/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int SelectHikvisionStreamType(HikvisionChannel channel, bool useSubStream)
+        {
+            int preferred = useSubStream ? 2 : 1;
+            if (channel.SupportedStreamTypes.Contains(preferred))
+                return preferred;
+
+            if (channel.SupportedStreamTypes.Count > 0)
+                return channel.SupportedStreamTypes[0];
+
+            return preferred;
         }
 
         private static string BuildCredentialedRtspUrl(string ip, string path, string username, string password)
