@@ -3961,24 +3961,18 @@ namespace UniversalScanner
 
             List<VlcMosaicStream> streams = new List<VlcMosaicStream>();
             List<string> skippedIps = new List<string>();
+            List<string> authRejectedIps = new List<string>();
             bool allowSingleRowHikvisionProbe = rows.Count == 1;
 
             foreach (DataGridViewRow row in rows)
             {
-                await AddVlcStreamsForRowAsync(row, streamChoice, username, password, allowSingleRowHikvisionProbe, streams, skippedIps);
-            }
-
-            if (streams.Count == 0)
-            {
-                MessageBox.Show(this, "No selected devices have a valid IPv4 address.", "Show Selected by VLC",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
+                await AddVlcStreamsForRowAsync(row, streamChoice, username, password, allowSingleRowHikvisionProbe, streams, skippedIps, authRejectedIps);
             }
 
             // Do not block VLC mosaic from the RTSP OPTIONS pre-check. Several
             // Hikvision/NVR firmwares reject OPTIONS even when VLC can play the
             // stream with the same credentials.
-            string rejectedIp = "";
+            string rejectedIp = authRejectedIps.FirstOrDefault() ?? "";
             if (!string.IsNullOrWhiteSpace(rejectedIp))
             {
                 if (!PromptForVlcCredentials(rejectedIp, ref username, ref password))
@@ -3987,11 +3981,27 @@ namespace UniversalScanner
                 UniversalLoginManager.SetUniversalCredentials(username, password);
                 streams.Clear();
                 skippedIps.Clear();
+                authRejectedIps.Clear();
 
                 foreach (DataGridViewRow row in rows)
                 {
-                    await AddVlcStreamsForRowAsync(row, streamChoice, username, password, allowSingleRowHikvisionProbe, streams, skippedIps);
+                    await AddVlcStreamsForRowAsync(row, streamChoice, username, password, allowSingleRowHikvisionProbe, streams, skippedIps, authRejectedIps);
                 }
+
+                rejectedIp = authRejectedIps.FirstOrDefault() ?? "";
+                if (!string.IsNullOrWhiteSpace(rejectedIp))
+                {
+                    MessageBox.Show(this, "Authentication failed for " + rejectedIp + ". Please check the Universal Login username and password.", "Show Selected by VLC",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+
+            if (streams.Count == 0)
+            {
+                MessageBox.Show(this, "No selected devices have a valid IPv4 address.", "Show Selected by VLC",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
 
             try
@@ -4018,7 +4028,8 @@ namespace UniversalScanner
             string password,
             bool allowGenericHikvisionProbe,
             List<VlcMosaicStream> streams,
-            List<string> skippedIps)
+            List<string> skippedIps,
+            List<string> authRejectedIps)
         {
             string ip = row.Cells[(int)Columns.IPAddress].Value?.ToString() ?? "";
             if (!IPAddress.TryParse(ip, out IPAddress parsed) || parsed.AddressFamily != AddressFamily.InterNetwork)
@@ -4069,6 +4080,11 @@ namespace UniversalScanner
                         if (streams.Count > streamCountBeforeDvr)
                             return;
                     }
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    authRejectedIps.Add(parsed.ToString());
+                    return;
                 }
                 catch
                 {
