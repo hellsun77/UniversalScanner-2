@@ -77,3 +77,9 @@ Entries
 - Summary: The Release x86 build now copies the x86 SQLite.Interop.dll directly beside UniversalScanner.exe, in addition to the existing x86 subfolder copy, to prevent startup crashes on PCs where the native SQLite DLL is missing from the launch folder.
 - Verification: Release x86 app build passed and SQLite.Interop.dll appeared beside UniversalScanner.exe.
 - Commit: included in the commit that contains this entry.
+
+[2026-09-22] fix: do not require AI SQLite database at startup
+- Files changed: UniversalScanner/UniversalScanner.AdvancedView.cs, FIXES_AND_UPDATES.txt
+- Summary: The scanner no longer creates or loads the AI knowledge database during startup, so the main app can open from a single EXE even when SQLite native dependencies are not beside it. AI learning remains available from the Tools menu when its database dependencies are present.
+- Verification: Release x86 app build passed.
+- Commit: included in the commit that contains this entry.

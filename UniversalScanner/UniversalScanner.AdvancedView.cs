@@ -36,7 +36,7 @@ namespace UniversalScanner
             BuildAdvancedViewPanel();
             AddTreatAsBrandRightClickMenu();
             HookAdvancedBrandOverrideRefresh();
-            LoadOrCreateDefaultAiKnowledgeDatabase();
+            UpdateAiKnowledgeDatabaseStatus();
             ApplyViewVisibility();
         }
 
@@ -258,23 +258,14 @@ namespace UniversalScanner
 
         private void loadAiKnowledgeDatabaseToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            LoadOrCreateDefaultAiKnowledgeDatabase();
+            TryLoadOrCreateAiKnowledgeDatabase(true);
         }
 
         private void createAiKnowledgeDatabaseToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            try
+            if (TryLoadOrCreateAiKnowledgeDatabase(true))
             {
-                LoadOrCreateDefaultAiKnowledgeDatabase();
                 _ = ShowStatusAsync("AI knowledge database is ready.", 3000);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(this,
-                    "The AI knowledge database could not be prepared.\r\n\r\n" + ex.Message,
-                    "AI Knowledge Database",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
             }
         }
 
@@ -313,6 +304,33 @@ namespace UniversalScanner
                 aiKnowledgeBase.Create(databasePath);
 
             UpdateAiKnowledgeDatabaseStatus();
+        }
+
+        private bool TryLoadOrCreateAiKnowledgeDatabase(bool showMessage)
+        {
+            try
+            {
+                LoadOrCreateDefaultAiKnowledgeDatabase();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                aiKnowledgeBase.Unload();
+                UpdateAiKnowledgeDatabaseStatus();
+
+                if (showMessage)
+                {
+                    MessageBox.Show(this,
+                        "The AI knowledge database could not be prepared.\r\n\r\n" +
+                        ex.Message +
+                        "\r\n\r\nThe scanner will continue without AI learning.",
+                        "AI Knowledge Database",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+
+                return false;
+            }
         }
 
         private string GetDefaultAiKnowledgeDatabasePath()
