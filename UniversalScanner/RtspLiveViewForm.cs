@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using Microsoft.Win32;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -417,11 +419,17 @@ namespace UniversalScanner
 
         public static string FindVlcPath()
         {
-            string[] candidates =
-            {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "VideoLAN", "VLC", "vlc.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "VideoLAN", "VLC", "vlc.exe")
-            };
+            List<string> candidates = new List<string>();
+            AddVlcCandidate(candidates, GetVlcAppPathFromRegistry(Registry.LocalMachine));
+            AddVlcCandidate(candidates, GetVlcAppPathFromRegistry(Registry.CurrentUser));
+            AddVlcCandidate(candidates, GetVlcUninstallPathFromRegistry(Registry.LocalMachine, RegistryView.Registry64));
+            AddVlcCandidate(candidates, GetVlcUninstallPathFromRegistry(Registry.LocalMachine, RegistryView.Registry32));
+            AddVlcCandidate(candidates, GetVlcUninstallPathFromRegistry(Registry.CurrentUser, RegistryView.Default));
+            AddVlcCandidate(candidates, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "VideoLAN", "VLC", "vlc.exe"));
+            AddVlcCandidate(candidates, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "VideoLAN", "VLC", "vlc.exe"));
+            AddVlcCandidate(candidates, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "VideoLAN", "VLC", "vlc.exe"));
+            AddVlcCandidate(candidates, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VideoLAN", "VLC", "vlc.exe"));
+            AddVlcCandidate(candidates, FindVlcOnPath());
 
             foreach (string candidate in candidates)
             {
@@ -429,11 +437,87 @@ namespace UniversalScanner
                     return candidate;
             }
 
+            return "";
+        }
+
+        private static void AddVlcCandidate(List<string> candidates, string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return;
+
+            path = path.Trim().Trim('"');
+
+            if (File.Exists(path) && !candidates.Exists(candidate => string.Equals(candidate, path, StringComparison.OrdinalIgnoreCase)))
+                candidates.Add(path);
+        }
+
+        private static string GetVlcAppPathFromRegistry(RegistryKey root)
+        {
+            try
+            {
+                using (RegistryKey key = root.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\vlc.exe"))
+                {
+                    return key == null ? "" : Convert.ToString(key.GetValue(""));
+                }
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        private static string GetVlcUninstallPathFromRegistry(RegistryKey root, RegistryView view)
+        {
+            try
+            {
+                RegistryHive hive = root.Name == "HKEY_CURRENT_USER" ? RegistryHive.CurrentUser : RegistryHive.LocalMachine;
+                using (RegistryKey baseKey = RegistryKey.OpenBaseKey(hive, view))
+                using (RegistryKey uninstallKey = baseKey.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"))
+                {
+                    if (uninstallKey == null)
+                        return "";
+
+                    foreach (string subKeyName in uninstallKey.GetSubKeyNames())
+                    {
+                        using (RegistryKey appKey = uninstallKey.OpenSubKey(subKeyName))
+                        {
+                            if (appKey == null)
+                                continue;
+
+                            string displayName = Convert.ToString(appKey.GetValue("DisplayName"));
+                            if (string.IsNullOrWhiteSpace(displayName) ||
+                                displayName.IndexOf("VLC media player", StringComparison.OrdinalIgnoreCase) < 0)
+                                continue;
+
+                            string installLocation = Convert.ToString(appKey.GetValue("InstallLocation"));
+                            if (!string.IsNullOrWhiteSpace(installLocation))
+                            {
+                                string candidate = Path.Combine(installLocation.Trim().Trim('"'), "vlc.exe");
+                                if (File.Exists(candidate))
+                                    return candidate;
+                            }
+
+                            string iconPath = NormalizeExecutablePath(Convert.ToString(appKey.GetValue("DisplayIcon")));
+                            if (File.Exists(iconPath))
+                                return iconPath;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return "";
+        }
+
+        private static string FindVlcOnPath()
+        {
             try
             {
                 ProcessStartInfo info = new ProcessStartInfo();
                 info.FileName = "where";
-                info.Arguments = "vlc";
+                info.Arguments = "vlc.exe";
                 info.UseShellExecute = false;
                 info.RedirectStandardOutput = true;
                 info.CreateNoWindow = true;
@@ -455,6 +539,19 @@ namespace UniversalScanner
             }
 
             return "";
+        }
+
+        private static string NormalizeExecutablePath(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return "";
+
+            string path = value.Trim().Trim('"');
+            int exeIndex = path.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
+            if (exeIndex >= 0)
+                path = path.Substring(0, exeIndex + 4);
+
+            return path.Trim().Trim('"');
         }
 
         private enum RtspCredentialCheck
