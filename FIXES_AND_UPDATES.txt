@@ -95,3 +95,9 @@ Entries
 - Summary: Dahua discovery rows that only report the generic Private Upnp SDK model and no confirmed Dahua model are now shown as Dahua SDK/UPnP service rows with activation N/A, and are excluded from Dahua camera actions.
 - Verification: Release x86 app build passed.
 - Commit: included in the commit that contains this entry.
+
+[2026-09-22] correction: preserve Dahua discovery behavior for Private UPnP SDK rows
+- Files changed: UniversalScanner/UniversalScanner.cs, FIXES_AND_UPDATES.txt
+- Summary: Narrowed the previous Private Upnp SDK handling so Dahua rows are still treated as Dahua for discovery/actions. Only the Model column is changed to Dahua UPnP response (model unknown) when no real Dahua model is confirmed.
+- Verification: Release x86 app build passed.
+- Commit: included in the commit that contains this entry.

@@ -690,8 +690,6 @@ namespace UniversalScanner
 
                 string initialActivation = isDahuaSwitch
                     ? "N/A (Switch)"
-                    : isUnconfirmedDahuaUpnpSdk
-                    ? "N/A"
                     : !string.IsNullOrWhiteSpace(dahuaDiscoveryStatus)
                     ? dahuaDiscoveryStatus
                     : IsHikvisionText(protocol) || IsHikvisionText(deviceType) || IsHikvisionText(deviceUUID)
@@ -703,8 +701,8 @@ namespace UniversalScanner
                     : "N/A";
 
                 foundDeviceList.Rows.Add(
-                    isUnconfirmedDahuaUpnpSdk ? "Dahua SDK/UPnP" : isDahuaVms ? "VMS/Windows" : protocol,
-                    isUnconfirmedDahuaUpnpSdk ? "Discovery" : isDahuaVms ? "Discovery" : protocol,
+                    isDahuaVms ? "VMS/Windows" : protocol,
+                    isDahuaVms ? "Discovery" : protocol,
                     version,
                     deviceIP,
                     "Not checked",
@@ -713,7 +711,7 @@ namespace UniversalScanner
                     "",
                     hasUniviewDiscoveryInfo && !string.IsNullOrWhiteSpace(univiewDiscoveryInfo.Model)
                         ? univiewDiscoveryInfo.Model
-                        : isUnconfirmedDahuaUpnpSdk ? "Dahua SDK/UPnP service"
+                        : isUnconfirmedDahuaUpnpSdk ? "Dahua UPnP response (model unknown)"
                         : !string.IsNullOrWhiteSpace(dahuaModel) && IsGenericDahuaType(deviceType) ? dahuaModel : deviceType,
                     hasUniviewDiscoveryInfo && !string.IsNullOrWhiteSpace(univiewDiscoveryInfo.OnvifProfiles)
                         ? NormalizeOnvifProfileDisplay(univiewDiscoveryInfo.OnvifProfiles)
@@ -1449,22 +1447,12 @@ namespace UniversalScanner
                    value.IndexOf("Private Upnp", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
-        private bool IsDahuaSdkUpnpServiceText(string value)
-        {
-            return !string.IsNullOrWhiteSpace(value) &&
-                   value.IndexOf("Dahua SDK/UPnP", StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
         private bool IsDahuaRow(DataRow row)
         {
             if (row == null)
                 return false;
 
             if (IsDahuaVmsType(row[(int)Columns.Type]?.ToString()))
-                return false;
-
-            if (IsDahuaSdkUpnpServiceText(row[(int)Columns.Vendor]?.ToString()) ||
-                IsDahuaSdkUpnpServiceText(row[(int)Columns.Type]?.ToString()))
                 return false;
 
             if (IsHoneywellOuiVendor(row[(int)Columns.MACVendor]?.ToString()))
@@ -1548,10 +1536,7 @@ namespace UniversalScanner
             if (IsDahuaPrivateUpnpText(row[(int)Columns.Type]?.ToString()) &&
                 string.IsNullOrWhiteSpace(model))
             {
-                row[(int)Columns.Vendor] = "Dahua SDK/UPnP";
-                row[(int)Columns.Protocol] = "Discovery";
-                row[(int)Columns.Activation] = "N/A";
-                row[(int)Columns.Type] = "Dahua SDK/UPnP service";
+                row[(int)Columns.Type] = "Dahua UPnP response (model unknown)";
                 return;
             }
 
