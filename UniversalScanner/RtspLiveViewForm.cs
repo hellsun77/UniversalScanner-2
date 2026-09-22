@@ -17,6 +17,7 @@ namespace UniversalScanner
     {
         private readonly string ipAddress;
         private readonly string _vendor;
+        private readonly string _model;
         private TextBox ipBox;
         private TextBox usernameBox;
         private TextBox passwordBox;
@@ -42,6 +43,7 @@ namespace UniversalScanner
         {
             this.ipAddress = ipAddress;
             this._vendor = vendor ?? "";
+            this._model = model ?? "";
 
             Text = "Show Live by VLC";
             StartPosition = FormStartPosition.CenterParent;
@@ -202,8 +204,9 @@ namespace UniversalScanner
                 return false;
             }
 
-            if (_vendor.IndexOf("Hikvision", StringComparison.OrdinalIgnoreCase) >= 0 && 
-                _isUsingAutomaticDefaultPath && 
+            bool hikvisionCandidate = IsHikvisionRtspCandidate();
+            if (_isUsingAutomaticDefaultPath &&
+                ShouldTryHikvisionChannelDiscovery(hikvisionCandidate) &&
                 _detectionState != HikvisionChannelDetectionState.Completed &&
                 _detectionState != HikvisionChannelDetectionState.InProgress)
             {
@@ -235,6 +238,12 @@ namespace UniversalScanner
 
                 if (authFailed)
                 {
+                    if (!hikvisionCandidate)
+                    {
+                        _detectionState = HikvisionChannelDetectionState.Skipped;
+                        goto OpenCurrentPath;
+                    }
+
                     // The silent Universal Login attempt may fail before the
                     // form is shown. Reset detection so the user retry runs
                     // channel discovery again instead of keeping channel 1.
@@ -280,6 +289,12 @@ namespace UniversalScanner
                 }
                 else
                 {
+                    if (!hikvisionCandidate)
+                    {
+                        _detectionState = HikvisionChannelDetectionState.Skipped;
+                        goto OpenCurrentPath;
+                    }
+
                     // Query failed or 0 channels
                     _detectionState = HikvisionChannelDetectionState.Failed;
                     using (var sel = new UniversalScanner.Forms.HikvisionChannelSelectForm(null, true))
@@ -297,6 +312,7 @@ namespace UniversalScanner
                 }
             }
 
+        OpenCurrentPath:
             try
             {
                 string url = BuildRtspUrl();
@@ -405,6 +421,27 @@ namespace UniversalScanner
         private bool IsBoschDevice()
         {
             return IsBoschRtspText(_vendor);
+        }
+
+        private bool IsHikvisionRtspCandidate()
+        {
+            string text = ((_vendor ?? "") + " " + (_model ?? "")).ToLowerInvariant();
+            return text.Contains("hikvision") ||
+                   text.Contains("hiwatch") ||
+                   text.Contains("hik-connect") ||
+                   text.Contains("ds-") ||
+                   text.Contains("ids-") ||
+                   text.Contains("nvr") ||
+                   text.Contains("dvr");
+        }
+
+        private bool ShouldTryHikvisionChannelDiscovery(bool hikvisionCandidate)
+        {
+            if (hikvisionCandidate)
+                return true;
+
+            string path = (pathBox?.Text ?? "").Trim();
+            return path.StartsWith("/Streaming/Channels/", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsBoschRtspText(string value)
