@@ -22,13 +22,15 @@ These instructions apply to all future development tasks in this repository.
 ## After Every Completed Development Task
 
 1. Verify that the project builds successfully.
-2. Review the modified files.
-3. Stage only files related to the completed task.
-4. Create a descriptive Git commit.
-5. Fetch the latest remote changes.
-6. Push the commit to GitHub if the remote branch has not diverged.
-7. If the remote branch has changed, integrate the changes safely before pushing.
-8. Report the commit ID and push status.
+2. Add a new entry to `FIXES_AND_UPDATES.txt` describing the fix or update, changed files, verification, and commit hash placeholder.
+3. Review the modified files.
+4. Stage only files related to the completed task, including `FIXES_AND_UPDATES.txt`.
+5. Create a descriptive Git commit.
+6. Replace the commit hash placeholder in `FIXES_AND_UPDATES.txt` with the actual commit hash, then amend the commit.
+7. Fetch the latest remote changes.
+8. Push the commit to GitHub if the remote branch has not diverged.
+9. If the remote branch has changed, integrate the changes safely before pushing.
+10. Report the commit ID and push status.
 
 ## Safety Rules
 

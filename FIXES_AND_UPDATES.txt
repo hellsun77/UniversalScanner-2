@@ -1,0 +1,61 @@
+UniversalScanner 2 - Fixes and Updates
+======================================
+
+Purpose
+-------
+Record every fix or update that is added to the project. Keep this file updated
+with each future code, documentation, packaging, or workflow change before
+committing to GitHub.
+
+Format
+------
+[YYYY-MM-DD] type: short title
+- Files changed: file1, file2
+- Summary: what changed and why
+- Verification: build/test/manual check performed
+- Commit: Git commit hash after the change is committed
+
+Entries
+-------
+
+[2026-09-20] initial: import clean source repository
+- Files changed: initial source import
+- Summary: Created a clean private GitHub repository from the current UniversalScanner project, excluding build outputs, captures, logs, archives, scratch folders, and local/private tooling files while keeping required source and SDK files.
+- Verification: Confirmed 258 source/project files, 27 SDK files, and 54 DeviceSDK source files were uploaded to the private repository.
+- Commit: 9107dbf
+
+[2026-09-20] docs: add multi-PC development workflow instructions
+- Files changed: AGENTS.md
+- Summary: Added repository workflow instructions for safe multi-PC Codex development, including fetch/pull rules, no force-push, no reset, and preserving existing work.
+- Verification: Documentation-only change.
+- Commit: 846ecd7
+
+[2026-09-22] fix: improve startup diagnostics and VLC detection
+- Files changed: UniversalScanner/Program.cs, UniversalScanner/RtspLiveViewForm.cs
+- Summary: Added startup/global exception handling with a crash log at %LOCALAPPDATA%\UniversalScanner\startup-crash.log. Improved VLC detection through registry App Paths, uninstall entries, standard folders, per-user folders, and PATH lookup.
+- Verification: Release x86 app build passed.
+- Commit: 08efe88
+
+[2026-09-22] fix: detect Hikvision DVR channels before VLC launch
+- Files changed: UniversalScanner/RtspLiveViewForm.cs
+- Summary: Before opening a Hikvision-style RTSP path, the app now attempts channel discovery through /ISAPI/Streaming/channels so DVR users can choose the correct camera channel instead of always opening channel 101.
+- Verification: Release x86 app build passed. Live DVR reported channels 101/102, 201/202, 301/302, and 401/402.
+- Commit: 9c755f7
+
+[2026-09-22] update: expand Hikvision DVR channels in VLC mosaic
+- Files changed: UniversalScanner/UniversalScanner.cs
+- Summary: Show Selected by VLC Mosaic now expands a selected Hikvision DVR into one mosaic stream per reported DVR channel, supporting 4, 8, 16, or other channel counts returned by the DVR.
+- Verification: Release x86 app build passed.
+- Commit: 01afc70
+
+[2026-09-22] fix: prompt when DVR mosaic credentials fail
+- Files changed: UniversalScanner/UniversalScanner.cs
+- Summary: If DVR channel discovery rejects the saved Universal Login credentials, the mosaic flow now prompts for corrected credentials before launching VLC. Corrected credentials are saved back to Universal Login.
+- Verification: Release x86 app build passed.
+- Commit: 249d8c1
+
+[2026-09-22] docs: add fixes and updates tracking file
+- Files changed: FIXES_AND_UPDATES.txt, AGENTS.md
+- Summary: Added a project-level text file to record every future fix or update and updated repository instructions so future commits include an entry in the tracking file.
+- Verification: Documentation-only change.
+- Commit: f9b3d67
