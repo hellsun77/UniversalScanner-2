@@ -89,3 +89,9 @@ Entries
 - Summary: Dahua VLC viewing now checks RTSP authentication before launching VLC. If the saved Universal Login credentials are rejected, single-camera viewing returns to the credential form and mosaic viewing prompts for corrected credentials before opening VLC.
 - Verification: Release x86 app build passed.
 - Commit: included in the commit that contains this entry.
+
+[2026-09-22] fix: classify generic Dahua Private UPnP SDK as non-camera service
+- Files changed: UniversalScanner/UniversalScanner.cs, FIXES_AND_UPDATES.txt
+- Summary: Dahua discovery rows that only report the generic Private Upnp SDK model and no confirmed Dahua model are now shown as Dahua SDK/UPnP service rows with activation N/A, and are excluded from Dahua camera actions.
+- Verification: Release x86 app build passed.
+- Commit: included in the commit that contains this entry.

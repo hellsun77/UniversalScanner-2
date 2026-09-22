@@ -681,12 +681,17 @@ namespace UniversalScanner
                 string dahuaModel = isDahuaDiscovery
                     ? DeviceSDK.Dahua.DahuaDiscoveryState.GetDeviceModel(deviceIP, "", deviceUUID)
                     : null;
+                bool isUnconfirmedDahuaUpnpSdk = isDahuaDiscovery &&
+                    IsDahuaPrivateUpnpText(deviceType) &&
+                    string.IsNullOrWhiteSpace(dahuaModel);
 
                 bool isBoschDiscovery = IsBoschText(protocol) || IsBoschText(deviceType) || IsBoschText(deviceUUID);
                 bool isAxisDiscovery = IsAxisText(protocol) || IsAxisText(deviceType) || IsAxisText(deviceUUID);
 
                 string initialActivation = isDahuaSwitch
                     ? "N/A (Switch)"
+                    : isUnconfirmedDahuaUpnpSdk
+                    ? "N/A"
                     : !string.IsNullOrWhiteSpace(dahuaDiscoveryStatus)
                     ? dahuaDiscoveryStatus
                     : IsHikvisionText(protocol) || IsHikvisionText(deviceType) || IsHikvisionText(deviceUUID)
@@ -698,8 +703,8 @@ namespace UniversalScanner
                     : "N/A";
 
                 foundDeviceList.Rows.Add(
-                    isDahuaVms ? "VMS/Windows" : protocol,
-                    isDahuaVms ? "Discovery" : protocol,
+                    isUnconfirmedDahuaUpnpSdk ? "Dahua SDK/UPnP" : isDahuaVms ? "VMS/Windows" : protocol,
+                    isUnconfirmedDahuaUpnpSdk ? "Discovery" : isDahuaVms ? "Discovery" : protocol,
                     version,
                     deviceIP,
                     "Not checked",
@@ -708,6 +713,7 @@ namespace UniversalScanner
                     "",
                     hasUniviewDiscoveryInfo && !string.IsNullOrWhiteSpace(univiewDiscoveryInfo.Model)
                         ? univiewDiscoveryInfo.Model
+                        : isUnconfirmedDahuaUpnpSdk ? "Dahua SDK/UPnP service"
                         : !string.IsNullOrWhiteSpace(dahuaModel) && IsGenericDahuaType(deviceType) ? dahuaModel : deviceType,
                     hasUniviewDiscoveryInfo && !string.IsNullOrWhiteSpace(univiewDiscoveryInfo.OnvifProfiles)
                         ? NormalizeOnvifProfileDisplay(univiewDiscoveryInfo.OnvifProfiles)
@@ -1443,12 +1449,22 @@ namespace UniversalScanner
                    value.IndexOf("Private Upnp", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
+        private bool IsDahuaSdkUpnpServiceText(string value)
+        {
+            return !string.IsNullOrWhiteSpace(value) &&
+                   value.IndexOf("Dahua SDK/UPnP", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         private bool IsDahuaRow(DataRow row)
         {
             if (row == null)
                 return false;
 
             if (IsDahuaVmsType(row[(int)Columns.Type]?.ToString()))
+                return false;
+
+            if (IsDahuaSdkUpnpServiceText(row[(int)Columns.Vendor]?.ToString()) ||
+                IsDahuaSdkUpnpServiceText(row[(int)Columns.Type]?.ToString()))
                 return false;
 
             if (IsHoneywellOuiVendor(row[(int)Columns.MACVendor]?.ToString()))
@@ -1528,6 +1544,17 @@ namespace UniversalScanner
                 row[(int)Columns.IPAddress]?.ToString(),
                 row[(int)Columns.MAC]?.ToString(),
                 row[(int)Columns.UniqueId]?.ToString());
+
+            if (IsDahuaPrivateUpnpText(row[(int)Columns.Type]?.ToString()) &&
+                string.IsNullOrWhiteSpace(model))
+            {
+                row[(int)Columns.Vendor] = "Dahua SDK/UPnP";
+                row[(int)Columns.Protocol] = "Discovery";
+                row[(int)Columns.Activation] = "N/A";
+                row[(int)Columns.Type] = "Dahua SDK/UPnP service";
+                return;
+            }
+
             if (!string.IsNullOrWhiteSpace(model) &&
                 IsGenericDahuaType(row[(int)Columns.Type]?.ToString()))
             {
