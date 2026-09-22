@@ -317,6 +317,10 @@
       <Link>x86\SQLite.Interop.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="..\packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\build\net46\x86\SQLite.Interop.dll">
+      <Link>SQLite.Interop.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <None Include="Vauban.selftest">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

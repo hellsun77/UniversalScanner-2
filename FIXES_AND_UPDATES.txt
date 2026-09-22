@@ -71,3 +71,9 @@ Entries
 - Summary: Startup crash logging now writes startup-crash.log next to the running UniversalScanner.exe first, with the existing LocalAppData path kept as a fallback if the EXE folder cannot be written.
 - Verification: Release x86 app build passed.
 - Commit: included in the commit that contains this entry.
+
+[2026-09-22] fix: copy SQLite native DLL beside EXE
+- Files changed: UniversalScanner/UniversalScanner.csproj, FIXES_AND_UPDATES.txt
+- Summary: The Release x86 build now copies the x86 SQLite.Interop.dll directly beside UniversalScanner.exe, in addition to the existing x86 subfolder copy, to prevent startup crashes on PCs where the native SQLite DLL is missing from the launch folder.
+- Verification: Release x86 app build passed and SQLite.Interop.dll appeared beside UniversalScanner.exe.
+- Commit: included in the commit that contains this entry.
