@@ -199,24 +199,39 @@ namespace UniversalScanner
 
         private static string WriteCrashLog(Exception ex)
         {
-            string folder = Path.Combine(
+            string entry =
+                "=== " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " ===" + Environment.NewLine +
+                (ex == null ? "Unknown error" : ex.ToString()) +
+                Environment.NewLine + Environment.NewLine;
+
+            string exeFolder = Application.StartupPath;
+            string exePath = Path.Combine(exeFolder, "startup-crash.log");
+            if (TryAppendCrashLog(exeFolder, exePath, entry))
+            {
+                return exePath;
+            }
+
+            string fallbackFolder = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "UniversalScanner");
-            string path = Path.Combine(folder, "startup-crash.log");
+            string fallbackPath = Path.Combine(fallbackFolder, "startup-crash.log");
+            TryAppendCrashLog(fallbackFolder, fallbackPath, entry);
 
+            return fallbackPath;
+        }
+
+        private static bool TryAppendCrashLog(string folder, string path, string entry)
+        {
             try
             {
                 Directory.CreateDirectory(folder);
-                File.AppendAllText(path,
-                    "=== " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " ===" + Environment.NewLine +
-                    (ex == null ? "Unknown error" : ex.ToString()) +
-                    Environment.NewLine + Environment.NewLine);
+                File.AppendAllText(path, entry);
+                return true;
             }
             catch
             {
+                return false;
             }
-
-            return path;
         }
     }
 }

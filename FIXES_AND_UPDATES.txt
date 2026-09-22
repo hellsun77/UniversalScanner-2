@@ -65,3 +65,9 @@ Entries
 - Summary: Added FIXES_AND_UPDATES.txt as linked project content so it is copied next to UniversalScanner.exe in bin/x86/Release after builds.
 - Verification: Release x86 app build passed and FIXES_AND_UPDATES.txt appeared in bin/x86/Release.
 - Commit: 5e83b0d
+
+[2026-09-22] update: write crash log beside executable
+- Files changed: UniversalScanner/Program.cs, FIXES_AND_UPDATES.txt
+- Summary: Startup crash logging now writes startup-crash.log next to the running UniversalScanner.exe first, with the existing LocalAppData path kept as a fallback if the EXE folder cannot be written.
+- Verification: Release x86 app build passed.
+- Commit: included in the commit that contains this entry.
