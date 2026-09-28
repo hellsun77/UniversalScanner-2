@@ -101,3 +101,9 @@ Entries
 - Summary: Narrowed the previous Private Upnp SDK handling so Dahua rows are still treated as Dahua for discovery/actions. Only the Model column is changed to Dahua UPnP response (model unknown) when no real Dahua model is confirmed.
 - Verification: Release x86 app build passed.
 - Commit: included in the commit that contains this entry.
+
+[2026-09-28] docs: add Deep Code review workflow
+- Files changed: AGENTS.md, FIXES_AND_UPDATES.txt
+- Summary: Added repository instructions requiring Codex to send implementation plans to Deep Code for review before code changes and to run a non-mutating Deep Code review of completed work or current diffs before committing.
+- Verification: Deep Code final diff review passed; Release x86 app build passed with 0 warnings and 0 errors.
+- Commit: d8d0660

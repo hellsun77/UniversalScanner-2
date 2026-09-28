@@ -19,6 +19,14 @@ These instructions apply to all future development tasks in this repository.
 3. Do not modify unrelated files.
 4. Do not commit credentials, temporary files, or build artifacts.
 
+## Deep Code Review Workflow
+
+1. Before making code changes, prepare the intended implementation plan and submit it to Deep Code for review from the repository root using `deepcode -x -p "<plan review prompt>"`.
+2. The Deep Code plan review prompt must clearly say not to modify files and must ask Deep Code to identify risks, missing checks, and safer implementation steps.
+3. Consider Deep Code feedback before editing, but preserve these `AGENTS.md` instructions as the controlling workflow if Deep Code suggests conflicting process steps.
+4. After implementing and before committing, submit the completed work or current diff to Deep Code from the repository root using a non-mutating prompt. Use `git diff HEAD -- <task files> | deepcode -x -p "Review this diff for correctness and risks. Do not modify files."` so staged and unstaged task changes are both included. If the task adds new files, stage only those task files before this review or include their contents explicitly so Deep Code can see them.
+5. Address valid Deep Code findings before committing. If Deep Code is unavailable, record that in the verification notes and continue with the normal manual review/build workflow.
+
 ## After Every Completed Development Task
 
 1. Verify that the project builds successfully.
