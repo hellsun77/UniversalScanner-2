@@ -60,6 +60,10 @@ UniversalScanner\bin\x86\Release\UniversalScanner.exe
 
 This repository intentionally excludes local build outputs, release bundles, packet captures, HAR files, logs, scratch folders, private assistant/tool settings, and machine-specific secrets. Do not commit live camera credentials, API keys, private certificates, registry exports, packet captures from customer networks, or local diagnostic archives.
 
+## Contact
+
+For fixes and troubleshooting, contact anan.awwad@gmail.com.
+
 ## License
 
 The original Universal Scanner project is licensed under the GNU Lesser General Public License v3. See `LICENSE.txt`.
