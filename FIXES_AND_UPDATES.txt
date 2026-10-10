@@ -18,11 +18,17 @@ Format
 Entries
 -------
 
+[2026-10-10] docs: clarify original project core attribution
+- Files changed: README.md, FIXES_AND_UPDATES.txt
+- Summary: Clarified that the core of UniversalScanner 2 is built from the original UniversalScanner project at https://github.com/julienblitte/UniversalScanner and corrected the previous attribution entry commit hash.
+- Verification: Release x86 app build passed.
+- Commit: 9a250300893823292dbfe871074a3bcff9115f59
+
 [2026-10-10] docs: add original project attribution
 - Files changed: README.md, FIXES_AND_UPDATES.txt
 - Summary: Added a README note that UniversalScanner 2 is built based on the original UniversalScanner project at https://github.com/julienblitte/UniversalScanner.
 - Verification: Release x86 app build passed.
-- Commit: 67ab84ab69faba5fa619647c2762cd9a43e2f10d
+- Commit: 89d1a6210cb809aba9c364401bba062ff2e0d173
 
 [2026-09-20] initial: import clean source repository
 - Files changed: initial source import
