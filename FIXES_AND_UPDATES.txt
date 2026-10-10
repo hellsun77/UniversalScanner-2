@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-10] docs: list supported brands in README
+- Files changed: README.md, FIXES_AND_UPDATES.txt
+- Summary: Added a README section listing supported camera/security brands, discovery integrations, and a pointer to the vendor operation matrix.
+- Verification: Release x86 app build passed.
+- Commit: 1e86bcbdbaeb88f3622eb5a14772d9fffe5c5860
+
 [2026-10-10] docs: add fixes and troubleshooting contact
 - Files changed: README.md, FIXES_AND_UPDATES.txt
 - Summary: Added a README contact note for fixes and troubleshooting using anan.awwad@gmail.com.

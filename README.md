@@ -17,6 +17,14 @@ The application discovers devices using multicast, broadcast, and vendor-specifi
 - ONVIF live event monitoring and motion-detection configuration forms.
 - Build-time embedding with Costura.Fody and runtime extraction of native SDK dependencies.
 
+## Supported Brands and Integrations
+
+Supported camera/security brands include 360Vision, Advantech, Arecont, Axis, Bosch, Dahua, Eaton, FLIR, Hanwha/Samsung, Hikvision, Honeywell, Mobotix, NiceVision, Panasonic/i-PRO, Siqura/TKH, Sony, Sunell, Tiandy, Ubiquiti, Uniview/UNV, and Vivotek.
+
+Additional discovery and device integrations include SSDP/UPnP, WS-Discovery/ONVIF, mDNS/DNS-SD, Google Cast, GigE Vision, Vstarcam, Foscam, Lantronix, Microchip, Eden/Optima, CyberPower, and MSSQL discovery.
+
+Vendor-specific activation, readiness, IP-change, RTSP, or motion-detection features vary by brand. See `docs/VENDOR_MATRIX.md` for the detailed operation matrix.
+
 ## Project Structure
 
 - `UniversalScanner.sln` - Visual Studio solution.
