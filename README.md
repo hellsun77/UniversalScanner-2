@@ -1,6 +1,6 @@
 # UniversalScanner 2
 
-UniversalScanner 2 is a Windows Forms network discovery and device-management tool for IP cameras and other network devices. It is based on the Universal Scanner codebase and targets .NET Framework 4.8.
+UniversalScanner 2 is a Windows Forms network discovery and device-management tool for IP cameras and other network devices. It is built based on the original UniversalScanner project at https://github.com/julienblitte/UniversalScanner and targets .NET Framework 4.8.
 
 The application discovers devices using multicast, broadcast, and vendor-specific protocols, then displays the collected information in a Windows desktop interface. It includes discovery support for generic protocols such as SSDP/UPnP, WS-Discovery/ONVIF, mDNS/DNS-SD, and GigE Vision, plus vendor integrations for Hikvision, Dahua, Axis, Bosch, Honeywell, Uniview, Hanwha, Sony, Panasonic, Vivotek, Foscam, Ubiquiti, Eaton, Lantronix, Microchip, MSSQL discovery, and others.
 

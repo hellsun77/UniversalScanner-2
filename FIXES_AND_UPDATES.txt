@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-10] docs: add original project attribution
+- Files changed: README.md, FIXES_AND_UPDATES.txt
+- Summary: Added a README note that UniversalScanner 2 is built based on the original UniversalScanner project at https://github.com/julienblitte/UniversalScanner.
+- Verification: Release x86 app build passed.
+- Commit: 67ab84ab69faba5fa619647c2762cd9a43e2f10d
+
 [2026-09-20] initial: import clean source repository
 - Files changed: initial source import
 - Summary: Created a clean private GitHub repository from the current UniversalScanner project, excluding build outputs, captures, logs, archives, scratch folders, and local/private tooling files while keeping required source and SDK files.
