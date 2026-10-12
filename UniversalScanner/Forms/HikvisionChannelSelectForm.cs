@@ -29,9 +29,15 @@ namespace UniversalScanner.Forms
         public bool OpenDefault { get; private set; }
 
         public HikvisionChannelSelectForm(List<HikvisionChannel> channels, bool isFallback)
+            : this(channels, isFallback, _preferSubStream)
+        {
+        }
+
+        public HikvisionChannelSelectForm(List<HikvisionChannel> channels, bool isFallback, bool preferSubStream)
         {
             _channels = channels;
             _isFallback = isFallback;
+            _preferSubStream = preferSubStream;
 
             Text = "Open Live Stream";
             StartPosition = FormStartPosition.CenterParent;

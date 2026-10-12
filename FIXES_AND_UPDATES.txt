@@ -131,3 +131,9 @@ Entries
 - Summary: Added repository instructions requiring Codex to send implementation plans to Deep Code for review before code changes and to run a non-mutating Deep Code review of completed work or current diffs before committing.
 - Verification: Deep Code final diff review passed; Release x86 app build passed with 0 warnings and 0 errors.
 - Commit: d8d0660
+
+[2026-10-12] fix: ask Main or Sub stream for single VLC live view
+- Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/RtspLiveViewForm.cs, UniversalScanner/Forms/HikvisionChannelSelectForm.cs, FIXES_AND_UPDATES.txt
+- Summary: Show Live by VLC now asks whether to open the Main or Sub stream before launching a single selected camera. The chosen stream updates the default RTSP path and is also used as the preferred stream for Hikvision single-channel and fallback channel selection.
+- Verification: Release x86 app build passed with 0 errors and 4 existing warnings. Deep Code plan and diff reviews were attempted but produced no output and were stopped as unavailable.
+- Commit: included in the commit that contains this entry.

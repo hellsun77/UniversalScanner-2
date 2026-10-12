@@ -26,6 +26,7 @@ namespace UniversalScanner
         private Label previewLabel;
         private Button openButton;
         private Button cancelButton;
+        private readonly bool _useSubStream;
 
         private enum HikvisionChannelDetectionState
         {
@@ -40,10 +41,16 @@ namespace UniversalScanner
         private bool _internalPathChange = false;
 
         public RtspLiveViewForm(string ipAddress, string vendor, string model)
+            : this(ipAddress, vendor, model, false)
+        {
+        }
+
+        public RtspLiveViewForm(string ipAddress, string vendor, string model, bool useSubStream)
         {
             this.ipAddress = ipAddress;
             this._vendor = vendor ?? "";
             this._model = model ?? "";
+            this._useSubStream = useSubStream;
 
             Text = "Show Live by VLC";
             StartPosition = FormStartPosition.CenterParent;
@@ -56,7 +63,7 @@ namespace UniversalScanner
 
             ipBox.Text = ipAddress;
             usernameBox.Text = "admin";
-            SetPathBoxInternal(GetDefaultRtspPath(vendor, model));
+            SetPathBoxInternal(GetRtspPath(vendor, model, useSubStream));
             UpdatePreview();
         }
 
@@ -260,8 +267,8 @@ namespace UniversalScanner
                 if (channels != null && channels.Count == 1)
                 {
                     // Exactly one physical channel
-                    int streamType = 1;
-                    if (!channels[0].SupportedStreamTypes.Contains(1) && channels[0].SupportedStreamTypes.Count > 0)
+                    int streamType = _useSubStream ? 2 : 1;
+                    if (!channels[0].SupportedStreamTypes.Contains(streamType) && channels[0].SupportedStreamTypes.Count > 0)
                     {
                         streamType = channels[0].SupportedStreamTypes[0];
                     }
@@ -273,7 +280,7 @@ namespace UniversalScanner
                 else if (channels != null && channels.Count > 1)
                 {
                     // Show selector
-                    using (var sel = new UniversalScanner.Forms.HikvisionChannelSelectForm(channels, false))
+                    using (var sel = new UniversalScanner.Forms.HikvisionChannelSelectForm(channels, false, _useSubStream))
                     {
                         if (sel.ShowDialog(this) == DialogResult.OK)
                         {
@@ -297,7 +304,7 @@ namespace UniversalScanner
 
                     // Query failed or 0 channels
                     _detectionState = HikvisionChannelDetectionState.Failed;
-                    using (var sel = new UniversalScanner.Forms.HikvisionChannelSelectForm(null, true))
+                    using (var sel = new UniversalScanner.Forms.HikvisionChannelSelectForm(null, true, _useSubStream))
                     {
                         if (sel.ShowDialog(this) == DialogResult.OK)
                         {

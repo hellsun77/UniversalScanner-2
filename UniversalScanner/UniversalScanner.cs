@@ -3908,7 +3908,17 @@ namespace UniversalScanner
             string model = row.Cells[(int)Columns.Type].Value?.ToString() ?? "";
 
             string rtspVendorContext = string.Join(" ", new[] { vendor, protocol, ouiVendor });
-            using (RtspLiveViewForm form = new RtspLiveViewForm(parsed.ToString(), rtspVendorContext, model))
+            VlcMosaicStreamChoice streamChoice;
+            using (VlcStreamChoiceForm streamForm = new VlcStreamChoiceForm(1))
+            {
+                if (streamForm.ShowDialog(this) != DialogResult.OK)
+                    return;
+
+                streamChoice = streamForm.SelectedStream;
+            }
+
+            bool useSubStream = streamChoice == VlcMosaicStreamChoice.Sub;
+            using (RtspLiveViewForm form = new RtspLiveViewForm(parsed.ToString(), rtspVendorContext, model, useSubStream))
             {
                 UniversalLoginManager.GetUniversalCredentials(out string un, out string pw);
                 form.PreFillCredentials(un, pw);
