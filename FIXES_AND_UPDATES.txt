@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-15] fix: allow normal scan after stopping subnet scan
+- Files changed: UniversalScanner/UniversalScanner.cs, FIXES_AND_UPDATES.txt
+- Summary: Tracked the active subnet scan workflow so Stop Scan is honored during startup and normal Scan waits for the stopped subnet task to exit before restarting discovery.
+- Verification: Release x86 rebuild passed with 0 errors and 4 existing warnings; focused manual lifecycle and diff review passed. Deep Code plan and diff reviews produced no output and were stopped as unavailable. Live network scanning was not run.
+- Commit: 965d438da8ab426422fc3c93205cfa682baf6be0
+
 [2026-10-10] docs: list supported brands in README
 - Files changed: README.md, FIXES_AND_UPDATES.txt
 - Summary: Added a README section listing supported camera/security brands, discovery integrations, and a pointer to the vendor operation matrix.

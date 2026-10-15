@@ -49,6 +49,7 @@ namespace UniversalScanner
         }
 
         private bool stopSubnetScan = false;
+        private Task activeSubnetScanTask = Task.CompletedTask;
         private bool _normalScanFilterActive = false;
 
         public bool IsNormalScanExecuting { get; set; } = false;
@@ -549,8 +550,10 @@ namespace UniversalScanner
             await StartAutoScanAsync();
         }
 
-        private Task StartAutoScanAsync()
+        private async Task StartAutoScanAsync()
         {
+            await StopActiveSubnetScanAsync();
+
             currentScanSessionId = Guid.NewGuid();
             Logger.getInstance().WriteLine(Logger.DebugLevel.Info, $"[Normal Scan] StartAutoScanAsync entered. SessionID: {currentScanSessionId}");
 
@@ -566,8 +569,39 @@ namespace UniversalScanner
             Logger.getInstance().WriteLine(Logger.DebugLevel.Info, "[Normal Scan] scanEvent fired");
             if (scanEvent != null)
                 scanEvent.Invoke();
+        }
 
-            return Task.CompletedTask;
+        private async Task StopActiveSubnetScanAsync()
+        {
+            while (true)
+            {
+                Task subnetScanTask = activeSubnetScanTask;
+                if (subnetScanTask == null || subnetScanTask.IsCompleted)
+                    return;
+
+                stopSubnetScan = true;
+                this.Text = "Universal Scanner - Stopping...";
+                await subnetScanTask;
+            }
+        }
+
+        private async Task RunTrackedSubnetScanAsync(Func<Task> scanAction)
+        {
+            await StopActiveSubnetScanAsync();
+
+            stopSubnetScan = false;
+            Task subnetScanTask = scanAction();
+            activeSubnetScanTask = subnetScanTask;
+
+            try
+            {
+                await subnetScanTask;
+            }
+            finally
+            {
+                if (object.ReferenceEquals(activeSubnetScanTask, subnetScanTask))
+                    activeSubnetScanTask = Task.CompletedTask;
+            }
         }
 
         private void stopSubnetButton_Click(object sender, EventArgs e)
@@ -3235,7 +3269,6 @@ namespace UniversalScanner
             scanProgressBar.Minimum = 0;
             scanProgressBar.Maximum = 254;
             scanProgressBar.Value = 0;
-            stopSubnetScan = false;
 
             for (int i = 1; i <= 254; i++)
             {
@@ -3585,8 +3618,12 @@ namespace UniversalScanner
 
         private async void scanSubnetButton_Click(object sender, EventArgs e)
         {
+            await RunTrackedSubnetScanAsync(ScanSelectedSubnetAsync);
+        }
+
+        private async Task ScanSelectedSubnetAsync()
+        {
             currentScanSessionId = Guid.NewGuid();
-            stopSubnetScan = false;
 
             ClearDeviceListPreservingRecentIpChanges();
 
@@ -3606,8 +3643,12 @@ namespace UniversalScanner
 
         private async void scanAllLocalSubnetsToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            await RunTrackedSubnetScanAsync(ScanAllLocalSubnetsAsync);
+        }
+
+        private async Task ScanAllLocalSubnetsAsync()
+        {
             currentScanSessionId = Guid.NewGuid();
-            stopSubnetScan = false;
 
             ClearDeviceListPreservingRecentIpChanges();
 
