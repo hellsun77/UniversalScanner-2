@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net.Http;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace UniversalScanner
@@ -14,15 +15,54 @@ namespace UniversalScanner
 
     public static class SubnetVendorProbe
     {
-        public static async Task<VendorProbeResult> DetectAsync(string ip)
+        private static void ObserveFault(Task task)
+        {
+            task.ContinueWith(
+                faultedTask =>
+                {
+                    AggregateException ignored = faultedTask.Exception;
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
+
+        private static async Task<string> ReadContentWithCancellationAsync(
+            HttpResponseMessage response,
+            CancellationToken cancellationToken)
+        {
+            Task<string> readTask = response.Content.ReadAsStringAsync();
+            TaskCompletionSource<bool> cancellationSignal =
+                new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task completed;
+
+            using (cancellationToken.Register(() => cancellationSignal.TrySetResult(true)))
+            {
+                completed = await Task.WhenAny(readTask, cancellationSignal.Task);
+            }
+
+            if (completed != readTask)
+            {
+                response.Dispose();
+                ObserveFault(readTask);
+                throw new OperationCanceledException(cancellationToken);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return await readTask;
+        }
+
+        public static async Task<VendorProbeResult> DetectAsync(
+            string ip,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             string text = "";
 
-            text += await GetWebText(ip, "http", "/");
-            text += await GetWebText(ip, "http", "/ISAPI/System/deviceInfo");
-            text += await GetWebText(ip, "http", "/cgi-bin/magicBox.cgi?action=getSystemInfo");
-            text += await GetWebText(ip, "http", "/system.ini");
-            text += await GetWebText(ip, "https", "/");
+            text += await GetWebText(ip, "http", "/", cancellationToken);
+            text += await GetWebText(ip, "http", "/ISAPI/System/deviceInfo", cancellationToken);
+            text += await GetWebText(ip, "http", "/cgi-bin/magicBox.cgi?action=getSystemInfo", cancellationToken);
+            text += await GetWebText(ip, "http", "/system.ini", cancellationToken);
+            text += await GetWebText(ip, "https", "/", cancellationToken);
 
             string lower = text.ToLowerInvariant();
 
@@ -122,8 +162,14 @@ namespace UniversalScanner
             return fallback;
         }
 
-        private static async Task<string> GetWebText(string ip, string scheme, string path)
+        private static async Task<string> GetWebText(
+            string ip,
+            string scheme,
+            string path,
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             try
             {
                 using (HttpClient client = new HttpClient())
@@ -131,13 +177,20 @@ namespace UniversalScanner
                     client.Timeout = TimeSpan.FromMilliseconds(800);
 
                     string url = scheme + "://" + ip + path;
-                    HttpResponseMessage response = await client.GetAsync(url);
+                    using (HttpResponseMessage response = await client.GetAsync(url, cancellationToken))
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
 
-                    string body = await response.Content.ReadAsStringAsync();
-                    string headers = response.Headers.ToString();
+                        string body = await ReadContentWithCancellationAsync(response, cancellationToken);
+                        string headers = response.Headers.ToString();
 
-                    return headers + "\n" + body + "\n";
+                        return headers + "\n" + body + "\n";
+                    }
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch
             {

@@ -50,6 +50,8 @@ namespace UniversalScanner
 
         private bool stopSubnetScan = false;
         private Task activeSubnetScanTask = Task.CompletedTask;
+        private CancellationTokenSource activeSubnetScanCancellation;
+        private int subnetStopRequestVersion;
         private bool _normalScanFilterActive = false;
 
         public bool IsNormalScanExecuting { get; set; } = false;
@@ -579,34 +581,95 @@ namespace UniversalScanner
                 if (subnetScanTask == null || subnetScanTask.IsCompleted)
                     return;
 
-                stopSubnetScan = true;
-                this.Text = "Universal Scanner - Stopping...";
-                await subnetScanTask;
+                RequestSubnetScanStop();
+
+                try
+                {
+                    await subnetScanTask;
+                }
+                catch (OperationCanceledException)
+                {
+                }
             }
         }
 
-        private async Task RunTrackedSubnetScanAsync(Func<Task> scanAction)
+        private bool RequestSubnetScanStop()
         {
-            await StopActiveSubnetScanAsync();
+            Task subnetScanTask = activeSubnetScanTask;
+            if (subnetScanTask == null || subnetScanTask.IsCompleted)
+                return false;
 
-            stopSubnetScan = false;
-            Task subnetScanTask = scanAction();
-            activeSubnetScanTask = subnetScanTask;
+            stopSubnetScan = true;
+            this.Text = "Universal Scanner - Scan stopped";
+
+            CancellationTokenSource cancellation = activeSubnetScanCancellation;
+            if (cancellation == null || cancellation.IsCancellationRequested)
+                return true;
 
             try
             {
+                cancellation.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            catch (AggregateException ex)
+            {
+                Logger.getInstance().WriteLine(Logger.DebugLevel.Warn, "Subnet scan cancellation callback failed: " + ex.Message);
+            }
+
+            return true;
+        }
+
+        private async Task RunTrackedSubnetScanAsync(Func<CancellationToken, Task> scanAction)
+        {
+            Task currentTask = activeSubnetScanTask;
+            if (currentTask != null && !currentTask.IsCompleted)
+            {
+                int stopRequestVersion = subnetStopRequestVersion;
+                RequestSubnetScanStop();
+                await StopActiveSubnetScanAsync();
+
+                if (stopRequestVersion != subnetStopRequestVersion)
+                    return;
+            }
+
+            stopSubnetScan = false;
+            CancellationTokenSource cancellation = new CancellationTokenSource();
+            activeSubnetScanCancellation = cancellation;
+            Task subnetScanTask = null;
+
+            try
+            {
+                subnetScanTask = scanAction(cancellation.Token);
+                activeSubnetScanTask = subnetScanTask;
                 await subnetScanTask;
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+                this.Text = "Universal Scanner - Scan stopped";
+            }
+            catch (Exception ex)
+            {
+                Logger.getInstance().WriteLine(Logger.DebugLevel.Error, "Subnet scan failed: " + ex);
+                this.Text = "Universal Scanner - Scan failed";
             }
             finally
             {
-                if (object.ReferenceEquals(activeSubnetScanTask, subnetScanTask))
+                if (subnetScanTask != null && object.ReferenceEquals(activeSubnetScanTask, subnetScanTask))
                     activeSubnetScanTask = Task.CompletedTask;
+
+                if (object.ReferenceEquals(activeSubnetScanCancellation, cancellation))
+                    activeSubnetScanCancellation = null;
+
+                cancellation.Dispose();
             }
         }
 
         private void stopSubnetButton_Click(object sender, EventArgs e)
         {
-            stopSubnetScan = true;
+            subnetStopRequestVersion++;
+            RequestSubnetScanStop();
         }
 
         public void deviceFound(string protocol, int version, IPAddress deviceIP, string deviceType, string deviceUUID)
@@ -3264,15 +3327,52 @@ namespace UniversalScanner
             }
         }
 
-        private async Task ScanSubnetAsync(string subnet)
+        private static void ObserveFault(Task task)
         {
+            task.ContinueWith(
+                faultedTask =>
+                {
+                    AggregateException ignored = faultedTask.Exception;
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
+
+        private static async Task<T> AwaitWithCancellation<T>(Task<T> task, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!cancellationToken.CanBeCanceled)
+                return await task;
+
+            TaskCompletionSource<bool> cancellationSignal =
+                new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            using (cancellationToken.Register(() => cancellationSignal.TrySetResult(true)))
+            {
+                Task completed = await Task.WhenAny(task, cancellationSignal.Task);
+                if (completed != task)
+                {
+                    ObserveFault(task);
+                    throw new OperationCanceledException(cancellationToken);
+                }
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return await task;
+        }
+
+        private async Task ScanSubnetAsync(string subnet, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             scanProgressBar.Minimum = 0;
             scanProgressBar.Maximum = 254;
             scanProgressBar.Value = 0;
 
             for (int i = 1; i <= 254; i++)
             {
-                if (stopSubnetScan)
+                if (stopSubnetScan || cancellationToken.IsCancellationRequested)
                     break;
 
                 scanProgressBar.Value = i;
@@ -3282,6 +3382,10 @@ namespace UniversalScanner
                             subnet + "." + i + " (" + i + "/254)";
 
                 Application.DoEvents();
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (IsDisposed)
+                    return;
 
                 string ip = subnet + "." + i;
 
@@ -3290,39 +3394,42 @@ namespace UniversalScanner
 
                 try
                 {
-                    bool reachable = await NetworkTools.IsDeviceReachableAsync(ip, 1000);
+                    bool reachable = await NetworkTools.IsDeviceReachableAsync(ip, 1000, cancellationToken);
 
                     if (reachable)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
+
                         if (IsOldIpSuppressed(ip))
                             continue;
 
-                        await Task.Delay(100);
+                        await Task.Delay(100, cancellationToken);
 
                         if (IsOldIpSuppressed(ip))
                             continue;
 
                         string pingText = "Reachable";
 
-                        using (Ping ping = new Ping())
+                        try
                         {
-                            try
-                            {
-                                var sw_ping = System.Diagnostics.Stopwatch.StartNew(); PingReply reply = await ping.SendPingAsync(ip, 1000); sw_ping.Stop(); StartupDiagnostics.Increment("PingProbes"); StartupDiagnostics.AddTimer("PingProbes", sw_ping.ElapsedMilliseconds); StartupDiagnostics.LogSlowOperation("Ping", ip, "Unknown", sw_ping.ElapsedMilliseconds, reply.Status == System.Net.NetworkInformation.IPStatus.Success);
-                                pingText = reply.Status == IPStatus.Success
-                                    ? reply.RoundtripTime + " ms"
-                                    : "No ping";
-                            }
-                            catch
-                            {
-                                pingText = "No ping";
-                            }
+                            var sw_ping = System.Diagnostics.Stopwatch.StartNew(); PingReply reply = await NetworkTools.PingAsync(ip, 1000, cancellationToken); sw_ping.Stop(); StartupDiagnostics.Increment("PingProbes"); StartupDiagnostics.AddTimer("PingProbes", sw_ping.ElapsedMilliseconds); StartupDiagnostics.LogSlowOperation("Ping", ip, "Unknown", sw_ping.ElapsedMilliseconds, reply != null && reply.Status == System.Net.NetworkInformation.IPStatus.Success);
+                            pingText = reply != null && reply.Status == IPStatus.Success
+                                ? reply.RoundtripTime + " ms"
+                                : "No ping";
+                        }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                        {
+                            throw;
+                        }
+                        catch
+                        {
+                            pingText = "No ping";
                         }
 
                         var sw_onvif = System.Diagnostics.Stopwatch.StartNew(); VendorProbeResult detected =
-                            await SubnetVendorProbe.DetectAsync(ip); sw_onvif.Stop(); StartupDiagnostics.Increment("OnvifProbes"); StartupDiagnostics.AddTimer("OnvifProbes", sw_onvif.ElapsedMilliseconds); StartupDiagnostics.LogSlowOperation("ONVIF", ip, "Unknown", sw_onvif.ElapsedMilliseconds, detected != null && detected.Vendor != "Unknown");
+                            await SubnetVendorProbe.DetectAsync(ip, cancellationToken); sw_onvif.Stop(); StartupDiagnostics.Increment("OnvifProbes"); StartupDiagnostics.AddTimer("OnvifProbes", sw_onvif.ElapsedMilliseconds); StartupDiagnostics.LogSlowOperation("ONVIF", ip, "Unknown", sw_onvif.ElapsedMilliseconds, detected != null && detected.Vendor != "Unknown");
 
-                        var sw_mac = System.Diagnostics.Stopwatch.StartNew(); string mac = await NetworkTools.GetMacAsync(ip); sw_mac.Stop(); StartupDiagnostics.Increment("MacProbes"); StartupDiagnostics.AddTimer("MacProbes", sw_mac.ElapsedMilliseconds); StartupDiagnostics.LogSlowOperation("MAC", ip, "Unknown", sw_mac.ElapsedMilliseconds, !string.IsNullOrEmpty(mac));
+                        var sw_mac = System.Diagnostics.Stopwatch.StartNew(); string mac = await NetworkTools.GetMacAsync(ip, 5, 300, cancellationToken); sw_mac.Stop(); StartupDiagnostics.Increment("MacProbes"); StartupDiagnostics.AddTimer("MacProbes", sw_mac.ElapsedMilliseconds); StartupDiagnostics.LogSlowOperation("MAC", ip, "Unknown", sw_mac.ElapsedMilliseconds, !string.IsNullOrEmpty(mac));
                         string macVendor = NetworkTools.GetVendor(mac);
 
                         string displayVendor = detected.Vendor;
@@ -3443,39 +3550,56 @@ namespace UniversalScanner
                         {
                             activation = NormalizeHoneywellActivationStatus(
                                 detected.Type,
-                                await DeviceSDK.Honeywell.HoneywellActivationStatusProbe.GetStatusAsync(ip));
+                                await AwaitWithCancellation(
+                                    DeviceSDK.Honeywell.HoneywellActivationStatusProbe.GetStatusAsync(ip),
+                                    cancellationToken));
                         }
                         else if (detectedHikvision)
                         {
-                            activation = await HikvisionActivationStatusProbe.GetStatusAsync(ip);
+                            activation = await AwaitWithCancellation(
+                                HikvisionActivationStatusProbe.GetStatusAsync(ip),
+                                cancellationToken);
                         }
                         else if (detectedUniview)
                         {
-                            activation = await DeviceSDK.Uniview.UniviewActivationStatusProbe.GetStatusAsync(ip);
+                            activation = await AwaitWithCancellation(
+                                DeviceSDK.Uniview.UniviewActivationStatusProbe.GetStatusAsync(ip),
+                                cancellationToken);
                         }
                         else if (detectedDahua)
                         {
                             activation = IsDahuaText(macVendor)
                                 ? "Active"
-                                : await Task.Run(() => DeviceSDK.Dahua.DahuaActivationStatusProbe.GetStatus(ip));
+                                : await AwaitWithCancellation(
+                                    Task.Run(() => DeviceSDK.Dahua.DahuaActivationStatusProbe.GetStatus(ip)),
+                                    cancellationToken);
                         }
                         else if (detectedSunell)
                         {
-                            activation = await Task.Run(() => DeviceSDK.Sunell.SunellActivationStatusProbe.GetStatus(ip));
+                            activation = await AwaitWithCancellation(
+                                Task.Run(() => DeviceSDK.Sunell.SunellActivationStatusProbe.GetStatus(ip)),
+                                cancellationToken);
                         }
                         else if (detectedTiandy)
                         {
-                            activation = await Task.Run(() => DeviceSDK.Tiandy.TiandyActivationStatusProbe.GetStatus(ip));
+                            activation = await AwaitWithCancellation(
+                                Task.Run(() => DeviceSDK.Tiandy.TiandyActivationStatusProbe.GetStatus(ip)),
+                                cancellationToken);
                         }
                         else if (detectedBosch)
                         {
-                            activation = await DeviceSDK.Bosch.BoschActivationStatusProbe.GetStatusAsync(ip);
+                            activation = await AwaitWithCancellation(
+                                DeviceSDK.Bosch.BoschActivationStatusProbe.GetStatusAsync(ip),
+                                cancellationToken);
                         }
 
+                        cancellationToken.ThrowIfCancellationRequested();
                         DataRow existingRow = FindDeviceRow(ip, mac);
 
                         if (existingRow != null)
                         {
+                            cancellationToken.ThrowIfCancellationRequested();
+
                             if (IsStaleHoneywellIdentityForIncomingMac(existingRow, mac, macVendor, detected))
                                 ResetRowToCurrentGenericIdentity(existingRow, detected, macVendor);
 
@@ -3553,7 +3677,9 @@ namespace UniversalScanner
                         if (detectedSunell &&
                             (string.IsNullOrWhiteSpace(displayType) || displayType == "Unknown" || IsGenericNetworkVideoType(displayType) || IsGenericWsDiscoveryText(displayType)))
                         {
-                            string sunellModel = DeviceSDK.Sunell.SunellActivationStatusProbe.GetModel(ip);
+                            string sunellModel = await AwaitWithCancellation(
+                                Task.Run(() => DeviceSDK.Sunell.SunellActivationStatusProbe.GetModel(ip)),
+                                cancellationToken);
                             displayType = string.IsNullOrWhiteSpace(sunellModel)
                                 ? "Network Video Transmitter"
                                 : sunellModel;
@@ -3561,7 +3687,9 @@ namespace UniversalScanner
                         if (detectedTiandy &&
                             (string.IsNullOrWhiteSpace(displayType) || displayType == "Unknown" || IsGenericNetworkVideoType(displayType) || IsGenericWsDiscoveryText(displayType)))
                         {
-                            string tiandyModel = await DeviceSDK.Tiandy.TiandyInfoProbe.GetModelAsync(ip);
+                            string tiandyModel = await AwaitWithCancellation(
+                                Task.Run(() => DeviceSDK.Tiandy.TiandyInfoProbe.GetModelAsync(ip)),
+                                cancellationToken);
                             displayType = string.IsNullOrWhiteSpace(tiandyModel)
                                 ? "Unknown"
                                 : tiandyModel;
@@ -3570,6 +3698,7 @@ namespace UniversalScanner
                             ? FirstNonEmpty(DeviceSDK.Tiandy.TiandyInfoProbe.LastUniqueId, mac)
                             : "";
 
+                        cancellationToken.ThrowIfCancellationRequested();
                         foundDeviceList.Rows.Add(
                             displayVendor,
                             displayProtocol,
@@ -3587,12 +3716,16 @@ namespace UniversalScanner
                         QueueOnvifProfileLookup(ip, NormalizeUniqueIdForDisplay(displayUniqueId));
                     }
                 }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch
                 {
                 }
             }
 
-            if (stopSubnetScan)
+            if (stopSubnetScan || cancellationToken.IsCancellationRequested)
             {
                 this.Text = "Universal Scanner - Scan stopped";
             }
@@ -3611,8 +3744,8 @@ namespace UniversalScanner
 
         private void stopSubnetButton_Click_1(object sender, EventArgs e)
         {
-            stopSubnetScan = true;
-            this.Text = "Universal Scanner - Stopping...";
+            subnetStopRequestVersion++;
+            RequestSubnetScanStop();
         }
 
 
@@ -3621,7 +3754,7 @@ namespace UniversalScanner
             await RunTrackedSubnetScanAsync(ScanSelectedSubnetAsync);
         }
 
-        private async Task ScanSelectedSubnetAsync()
+        private async Task ScanSelectedSubnetAsync(CancellationToken cancellationToken)
         {
             currentScanSessionId = Guid.NewGuid();
 
@@ -3630,10 +3763,10 @@ namespace UniversalScanner
             if (scanEvent != null)
                 scanEvent.Invoke();
 
-            await Task.Delay(2000);
+            await Task.Delay(2000, cancellationToken);
 
             string subnet = subnetTextBox.Text.Trim();
-            await ScanSubnetAsync(subnet);
+            await ScanSubnetAsync(subnet, cancellationToken);
         }
 
         private void exportCSVToolStripMenuItem_Click(object sender, EventArgs e)
@@ -3646,7 +3779,7 @@ namespace UniversalScanner
             await RunTrackedSubnetScanAsync(ScanAllLocalSubnetsAsync);
         }
 
-        private async Task ScanAllLocalSubnetsAsync()
+        private async Task ScanAllLocalSubnetsAsync(CancellationToken cancellationToken)
         {
             currentScanSessionId = Guid.NewGuid();
 
@@ -3655,16 +3788,16 @@ namespace UniversalScanner
             if (scanEvent != null)
                 scanEvent.Invoke();
 
-            await Task.Delay(2000);
+            await Task.Delay(2000, cancellationToken);
 
             List<string> subnets = GetLocalSubnets();
 
             foreach (string subnet in subnets)
             {
-                if (stopSubnetScan)
+                if (stopSubnetScan || cancellationToken.IsCancellationRequested)
                     break;
 
-                await ScanSubnetAsync(subnet);
+                await ScanSubnetAsync(subnet, cancellationToken);
             }
         }
         private void saveScanResults()

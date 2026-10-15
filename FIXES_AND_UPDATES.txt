@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-15] fix: stop subnet scan immediately
+- Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/NetworkTools.cs, UniversalScanner/SubnetVendorProbe.cs, FIXES_AND_UPDATES.txt
+- Summary: Added cancellation-token ownership for subnet scans, immediate cancellation for scan delays and network probes, safe abandonment of non-cancellable legacy vendor checks, and cancellation guards that prevent late results from updating the grid before normal Scan starts.
+- Verification: Release x86 rebuild passed with 0 errors and 4 existing warnings; pre-cancelled reachability and HTTP probe tasks completed as Canceled in 50 ms and 21 ms without sending network traffic. Deep Code completed two full diff reviews; all blocking findings from the first review were addressed, and the corrective review found no remaining commit blocker. Live network scanning was not run.
+- Commit: d26e8718ad34e647f97377ac0d66d02f6298ebb3
+
 [2026-10-15] fix: allow normal scan after stopping subnet scan
 - Files changed: UniversalScanner/UniversalScanner.cs, FIXES_AND_UPDATES.txt
 - Summary: Tracked the active subnet scan workflow so Stop Scan is honored during startup and normal Scan waits for the stopped subnet task to exit before restarting discovery.

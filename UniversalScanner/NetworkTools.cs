@@ -12,6 +12,18 @@ namespace UniversalScanner
 {
     public static class NetworkTools
     {
+        private static void ObserveFault(Task task)
+        {
+            task.ContinueWith(
+                faultedTask =>
+                {
+                    AggregateException ignored = faultedTask.Exception;
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
+
         [DllImport("iphlpapi.dll", ExactSpelling = true)]
         private static extern int SendARP(
             int destIp,
@@ -34,14 +46,30 @@ namespace UniversalScanner
         [DllImport("iphlpapi.dll", ExactSpelling = true)]
         private static extern int DeleteIpNetEntry(ref MIB_IPNETROW pArpEntry);
 
-        public static async Task<PingReply> PingAsync(string ip, int timeoutMs = 1000)
+        public static async Task<PingReply> PingAsync(
+            string ip,
+            int timeoutMs = 1000,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             try
             {
                 using (Ping ping = new Ping())
+                using (cancellationToken.Register(() =>
                 {
-                    return await ping.SendPingAsync(ip, timeoutMs);
+                    try { ping.SendAsyncCancel(); } catch { }
+                }))
+                {
+                    PingReply reply = await ping.SendPingAsync(ip, timeoutMs);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return reply;
                 }
+            }
+            catch (Exception ex) when (cancellationToken.IsCancellationRequested)
+            {
+                Logger.getInstance().WriteLine(Logger.DebugLevel.Debug, $"PingAsync cancelled for {ip}: {ex.Message}");
+                throw new OperationCanceledException(cancellationToken);
             }
             catch (Exception ex) when (ex is System.Net.NetworkInformation.PingException || 
                                        ex is System.ComponentModel.Win32Exception ||
@@ -80,12 +108,19 @@ namespace UniversalScanner
             }
         }
 
-        public static async Task<bool> IsOnlineAsync(string ip, int timeoutMs = 1000)
+        public static async Task<bool> IsOnlineAsync(
+            string ip,
+            int timeoutMs = 1000,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             try
             {
-                PingReply reply = await PingAsync(ip, timeoutMs);
+                PingReply reply = await PingAsync(ip, timeoutMs, cancellationToken);
                 return reply != null && reply.Status == IPStatus.Success;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch
             {
@@ -93,24 +128,38 @@ namespace UniversalScanner
             }
         }
 
-        public static async Task<bool> IsDeviceReachableAsync(string ip, int timeoutMs = 1000)
+        public static async Task<bool> IsDeviceReachableAsync(
+            string ip,
+            int timeoutMs = 1000,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            if (await IsOnlineAsync(ip, timeoutMs))
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (await IsOnlineAsync(ip, timeoutMs, cancellationToken))
                 return true;
 
             int[] ports = new int[] { 80, 443, 8000 };
 
             foreach (int port in ports)
             {
-                if (await IsTcpPortOpenAsync(ip, port, timeoutMs))
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (await IsTcpPortOpenAsync(ip, port, timeoutMs, null, cancellationToken))
                     return true;
             }
 
             return false;
         }
 
-        public static async Task<bool> IsTcpPortOpenAsync(string ip, int port, int timeoutMs = 1000, string sourceIp = null)
+        public static async Task<bool> IsTcpPortOpenAsync(
+            string ip,
+            int port,
+            int timeoutMs = 1000,
+            string sourceIp = null,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             try
             {
                 IPEndPoint localEndPoint = null;
@@ -120,13 +169,35 @@ namespace UniversalScanner
                 }
 
                 using (TcpClient client = localEndPoint != null ? new TcpClient(localEndPoint) : new TcpClient())
+                using (cancellationToken.Register(() =>
+                {
+                    try { client.Close(); } catch { }
+                }))
                 {
                     Task connectTask = client.ConnectAsync(ip, port);
-                    Task timeoutTask = Task.Delay(timeoutMs);
+                    Task timeoutTask = Task.Delay(timeoutMs, cancellationToken);
                     Task completed = await Task.WhenAny(connectTask, timeoutTask);
 
-                    return completed == connectTask && client.Connected;
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        ObserveFault(connectTask);
+                        cancellationToken.ThrowIfCancellationRequested();
+                    }
+
+                    if (completed != connectTask)
+                    {
+                        ObserveFault(connectTask);
+                        return false;
+                    }
+
+                    await connectTask;
+                    return client.Connected;
                 }
+            }
+            catch (Exception ex) when (cancellationToken.IsCancellationRequested)
+            {
+                Logger.getInstance().WriteLine(Logger.DebugLevel.Debug, $"IsTcpPortOpenAsync cancelled for {ip}:{port}: {ex.Message}");
+                throw new OperationCanceledException(cancellationToken);
             }
             catch (Exception ex) when (ex is System.Net.Sockets.SocketException || ex is System.ComponentModel.Win32Exception || ex is TimeoutException)
             {
@@ -145,17 +216,19 @@ namespace UniversalScanner
             int attempts = 10,
             int timeoutMs = 1200,
             int delayMs = 4000,
-            Action<int, int> progressCallback = null)
+            Action<int, int> progressCallback = null,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             for (int i = 1; i <= attempts; i++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 progressCallback?.Invoke(i, attempts);
 
-                if (await IsDeviceReachableAsync(ip, timeoutMs))
+                if (await IsDeviceReachableAsync(ip, timeoutMs, cancellationToken))
                     return true;
 
                 if (i < attempts)
-                    await Task.Delay(delayMs);
+                    await Task.Delay(delayMs, cancellationToken);
             }
 
             return false;
@@ -233,15 +306,18 @@ namespace UniversalScanner
         public static async Task<string> GetMacAsync(
             string ip,
             int attempts = 5,
-            int delayMs = 300)
+            int delayMs = 300,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             for (int i = 0; i < attempts; i++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 string mac = null;
                 
-                await _arpThrottle.WaitAsync().ConfigureAwait(false);
+                await _arpThrottle.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     mac = ForceArp(ip);
                 }
                 finally
@@ -252,11 +328,12 @@ namespace UniversalScanner
                 if (!string.IsNullOrWhiteSpace(mac))
                     return mac;
 
-                await IsDeviceReachableAsync(ip, 700).ConfigureAwait(false);
+                await IsDeviceReachableAsync(ip, 700, cancellationToken).ConfigureAwait(false);
 
-                await _arpThrottle.WaitAsync().ConfigureAwait(false);
+                await _arpThrottle.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     mac = ForceArp(ip);
                 }
                 finally
@@ -268,7 +345,7 @@ namespace UniversalScanner
                     return mac;
 
                 if (i < attempts - 1)
-                    await Task.Delay(delayMs).ConfigureAwait(false);
+                    await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
             }
 
             return "";
