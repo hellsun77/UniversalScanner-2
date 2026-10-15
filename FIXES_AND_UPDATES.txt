@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-15] correction: order fixes and updates newest first
+- Files changed: FIXES_AND_UPDATES.txt
+- Summary: Reordered all existing records by change time so the newest update is at the top and the oldest update is at the bottom.
+- Verification: Record dates and same-day commit order reviewed; Release x86 rebuild passed.
+- Commit: fb6ba5aef16f935dc01a882705fd6a194c80848a
+
 [2026-10-15] fix: restore visible subnet scan progress and stop confirmation
 - Files changed: UniversalScanner/UniversalScanner.cs, FIXES_AND_UPDATES.txt
 - Summary: Restored live subnet progress in the visible status bar and progress bar, added immediate stopping feedback, and kept a persistent stopped-position confirmation after cancellation without blocking a following normal scan.
@@ -35,6 +41,12 @@ Entries
 - Summary: Tracked the active subnet scan workflow so Stop Scan is honored during startup and normal Scan waits for the stopped subnet task to exit before restarting discovery.
 - Verification: Release x86 rebuild passed with 0 errors and 4 existing warnings; focused manual lifecycle and diff review passed. Deep Code plan and diff reviews produced no output and were stopped as unavailable. Live network scanning was not run.
 - Commit: 965d438da8ab426422fc3c93205cfa682baf6be0
+
+[2026-10-12] fix: ask Main or Sub stream for single VLC live view
+- Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/RtspLiveViewForm.cs, UniversalScanner/Forms/HikvisionChannelSelectForm.cs, FIXES_AND_UPDATES.txt
+- Summary: Show Live by VLC now asks whether to open the Main or Sub stream before launching a single selected camera. The chosen stream updates the default RTSP path and is also used as the preferred stream for Hikvision single-channel and fallback channel selection.
+- Verification: Release x86 app build passed with 0 errors and 4 existing warnings. Deep Code plan and diff reviews were attempted but produced no output and were stopped as unavailable.
+- Commit: included in the commit that contains this entry.
 
 [2026-10-10] docs: list supported brands in README
 - Files changed: README.md, FIXES_AND_UPDATES.txt
@@ -60,75 +72,15 @@ Entries
 - Verification: Release x86 app build passed.
 - Commit: 89d1a6210cb809aba9c364401bba062ff2e0d173
 
-[2026-09-20] initial: import clean source repository
-- Files changed: initial source import
-- Summary: Created a clean private GitHub repository from the current UniversalScanner project, excluding build outputs, captures, logs, archives, scratch folders, and local/private tooling files while keeping required source and SDK files.
-- Verification: Confirmed 258 source/project files, 27 SDK files, and 54 DeviceSDK source files were uploaded to the private repository.
-- Commit: 9107dbf
+[2026-09-28] docs: add Deep Code review workflow
+- Files changed: AGENTS.md, FIXES_AND_UPDATES.txt
+- Summary: Added repository instructions requiring Codex to send implementation plans to Deep Code for review before code changes and to run a non-mutating Deep Code review of completed work or current diffs before committing.
+- Verification: Deep Code final diff review passed; Release x86 app build passed with 0 warnings and 0 errors.
+- Commit: d8d0660
 
-[2026-09-20] docs: add multi-PC development workflow instructions
-- Files changed: AGENTS.md
-- Summary: Added repository workflow instructions for safe multi-PC Codex development, including fetch/pull rules, no force-push, no reset, and preserving existing work.
-- Verification: Documentation-only change.
-- Commit: 846ecd7
-
-[2026-09-22] fix: improve startup diagnostics and VLC detection
-- Files changed: UniversalScanner/Program.cs, UniversalScanner/RtspLiveViewForm.cs
-- Summary: Added startup/global exception handling with a crash log at %LOCALAPPDATA%\UniversalScanner\startup-crash.log. Improved VLC detection through registry App Paths, uninstall entries, standard folders, per-user folders, and PATH lookup.
-- Verification: Release x86 app build passed.
-- Commit: 08efe88
-
-[2026-09-22] fix: detect Hikvision DVR channels before VLC launch
-- Files changed: UniversalScanner/RtspLiveViewForm.cs
-- Summary: Before opening a Hikvision-style RTSP path, the app now attempts channel discovery through /ISAPI/Streaming/channels so DVR users can choose the correct camera channel instead of always opening channel 101.
-- Verification: Release x86 app build passed. Live DVR reported channels 101/102, 201/202, 301/302, and 401/402.
-- Commit: 9c755f7
-
-[2026-09-22] update: expand Hikvision DVR channels in VLC mosaic
-- Files changed: UniversalScanner/UniversalScanner.cs
-- Summary: Show Selected by VLC Mosaic now expands a selected Hikvision DVR into one mosaic stream per reported DVR channel, supporting 4, 8, 16, or other channel counts returned by the DVR.
-- Verification: Release x86 app build passed.
-- Commit: 01afc70
-
-[2026-09-22] fix: prompt when DVR mosaic credentials fail
-- Files changed: UniversalScanner/UniversalScanner.cs
-- Summary: If DVR channel discovery rejects the saved Universal Login credentials, the mosaic flow now prompts for corrected credentials before launching VLC. Corrected credentials are saved back to Universal Login.
-- Verification: Release x86 app build passed.
-- Commit: 249d8c1
-
-[2026-09-22] docs: add fixes and updates tracking file
-- Files changed: FIXES_AND_UPDATES.txt, AGENTS.md
-- Summary: Added a project-level text file to record every future fix or update and updated repository instructions so future commits include an entry in the tracking file.
-- Verification: Documentation-only change.
-- Commit: 25ff14d
-
-[2026-09-22] update: copy fixes and updates log to build output
-- Files changed: UniversalScanner/UniversalScanner.csproj, FIXES_AND_UPDATES.txt
-- Summary: Added FIXES_AND_UPDATES.txt as linked project content so it is copied next to UniversalScanner.exe in bin/x86/Release after builds.
-- Verification: Release x86 app build passed and FIXES_AND_UPDATES.txt appeared in bin/x86/Release.
-- Commit: 5e83b0d
-
-[2026-09-22] update: write crash log beside executable
-- Files changed: UniversalScanner/Program.cs, FIXES_AND_UPDATES.txt
-- Summary: Startup crash logging now writes startup-crash.log next to the running UniversalScanner.exe first, with the existing LocalAppData path kept as a fallback if the EXE folder cannot be written.
-- Verification: Release x86 app build passed.
-- Commit: included in the commit that contains this entry.
-
-[2026-09-22] fix: copy SQLite native DLL beside EXE
-- Files changed: UniversalScanner/UniversalScanner.csproj, FIXES_AND_UPDATES.txt
-- Summary: The Release x86 build now copies the x86 SQLite.Interop.dll directly beside UniversalScanner.exe, in addition to the existing x86 subfolder copy, to prevent startup crashes on PCs where the native SQLite DLL is missing from the launch folder.
-- Verification: Release x86 app build passed and SQLite.Interop.dll appeared beside UniversalScanner.exe.
-- Commit: included in the commit that contains this entry.
-
-[2026-09-22] fix: do not require AI SQLite database at startup
-- Files changed: UniversalScanner/UniversalScanner.AdvancedView.cs, FIXES_AND_UPDATES.txt
-- Summary: The scanner no longer creates or loads the AI knowledge database during startup, so the main app can open from a single EXE even when SQLite native dependencies are not beside it. AI learning remains available from the Tools menu when its database dependencies are present.
-- Verification: Release x86 app build passed.
-- Commit: included in the commit that contains this entry.
-
-[2026-09-22] fix: prompt for Dahua VLC credentials when Universal Login fails
-- Files changed: UniversalScanner/RtspLiveViewForm.cs, UniversalScanner/UniversalScanner.cs, FIXES_AND_UPDATES.txt
-- Summary: Dahua VLC viewing now checks RTSP authentication before launching VLC. If the saved Universal Login credentials are rejected, single-camera viewing returns to the credential form and mosaic viewing prompts for corrected credentials before opening VLC.
+[2026-09-22] correction: preserve Dahua discovery behavior for Private UPnP SDK rows
+- Files changed: UniversalScanner/UniversalScanner.cs, FIXES_AND_UPDATES.txt
+- Summary: Narrowed the previous Private Upnp SDK handling so Dahua rows are still treated as Dahua for discovery/actions. Only the Model column is changed to Dahua UPnP response (model unknown) when no real Dahua model is confirmed.
 - Verification: Release x86 app build passed.
 - Commit: included in the commit that contains this entry.
 
@@ -138,20 +90,74 @@ Entries
 - Verification: Release x86 app build passed.
 - Commit: included in the commit that contains this entry.
 
-[2026-09-22] correction: preserve Dahua discovery behavior for Private UPnP SDK rows
-- Files changed: UniversalScanner/UniversalScanner.cs, FIXES_AND_UPDATES.txt
-- Summary: Narrowed the previous Private Upnp SDK handling so Dahua rows are still treated as Dahua for discovery/actions. Only the Model column is changed to Dahua UPnP response (model unknown) when no real Dahua model is confirmed.
+[2026-09-22] fix: prompt for Dahua VLC credentials when Universal Login fails
+- Files changed: UniversalScanner/RtspLiveViewForm.cs, UniversalScanner/UniversalScanner.cs, FIXES_AND_UPDATES.txt
+- Summary: Dahua VLC viewing now checks RTSP authentication before launching VLC. If the saved Universal Login credentials are rejected, single-camera viewing returns to the credential form and mosaic viewing prompts for corrected credentials before opening VLC.
 - Verification: Release x86 app build passed.
 - Commit: included in the commit that contains this entry.
 
-[2026-09-28] docs: add Deep Code review workflow
-- Files changed: AGENTS.md, FIXES_AND_UPDATES.txt
-- Summary: Added repository instructions requiring Codex to send implementation plans to Deep Code for review before code changes and to run a non-mutating Deep Code review of completed work or current diffs before committing.
-- Verification: Deep Code final diff review passed; Release x86 app build passed with 0 warnings and 0 errors.
-- Commit: d8d0660
-
-[2026-10-12] fix: ask Main or Sub stream for single VLC live view
-- Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/RtspLiveViewForm.cs, UniversalScanner/Forms/HikvisionChannelSelectForm.cs, FIXES_AND_UPDATES.txt
-- Summary: Show Live by VLC now asks whether to open the Main or Sub stream before launching a single selected camera. The chosen stream updates the default RTSP path and is also used as the preferred stream for Hikvision single-channel and fallback channel selection.
-- Verification: Release x86 app build passed with 0 errors and 4 existing warnings. Deep Code plan and diff reviews were attempted but produced no output and were stopped as unavailable.
+[2026-09-22] fix: do not require AI SQLite database at startup
+- Files changed: UniversalScanner/UniversalScanner.AdvancedView.cs, FIXES_AND_UPDATES.txt
+- Summary: The scanner no longer creates or loads the AI knowledge database during startup, so the main app can open from a single EXE even when SQLite native dependencies are not beside it. AI learning remains available from the Tools menu when its database dependencies are present.
+- Verification: Release x86 app build passed.
 - Commit: included in the commit that contains this entry.
+
+[2026-09-22] fix: copy SQLite native DLL beside EXE
+- Files changed: UniversalScanner/UniversalScanner.csproj, FIXES_AND_UPDATES.txt
+- Summary: The Release x86 build now copies the x86 SQLite.Interop.dll directly beside UniversalScanner.exe, in addition to the existing x86 subfolder copy, to prevent startup crashes on PCs where the native SQLite DLL is missing from the launch folder.
+- Verification: Release x86 app build passed and SQLite.Interop.dll appeared beside UniversalScanner.exe.
+- Commit: included in the commit that contains this entry.
+
+[2026-09-22] update: write crash log beside executable
+- Files changed: UniversalScanner/Program.cs, FIXES_AND_UPDATES.txt
+- Summary: Startup crash logging now writes startup-crash.log next to the running UniversalScanner.exe first, with the existing LocalAppData path kept as a fallback if the EXE folder cannot be written.
+- Verification: Release x86 app build passed.
+- Commit: included in the commit that contains this entry.
+
+[2026-09-22] update: copy fixes and updates log to build output
+- Files changed: UniversalScanner/UniversalScanner.csproj, FIXES_AND_UPDATES.txt
+- Summary: Added FIXES_AND_UPDATES.txt as linked project content so it is copied next to UniversalScanner.exe in bin/x86/Release after builds.
+- Verification: Release x86 app build passed and FIXES_AND_UPDATES.txt appeared in bin/x86/Release.
+- Commit: 5e83b0d
+
+[2026-09-22] docs: add fixes and updates tracking file
+- Files changed: FIXES_AND_UPDATES.txt, AGENTS.md
+- Summary: Added a project-level text file to record every future fix or update and updated repository instructions so future commits include an entry in the tracking file.
+- Verification: Documentation-only change.
+- Commit: 25ff14d
+
+[2026-09-22] fix: prompt when DVR mosaic credentials fail
+- Files changed: UniversalScanner/UniversalScanner.cs
+- Summary: If DVR channel discovery rejects the saved Universal Login credentials, the mosaic flow now prompts for corrected credentials before launching VLC. Corrected credentials are saved back to Universal Login.
+- Verification: Release x86 app build passed.
+- Commit: 249d8c1
+
+[2026-09-22] update: expand Hikvision DVR channels in VLC mosaic
+- Files changed: UniversalScanner/UniversalScanner.cs
+- Summary: Show Selected by VLC Mosaic now expands a selected Hikvision DVR into one mosaic stream per reported DVR channel, supporting 4, 8, 16, or other channel counts returned by the DVR.
+- Verification: Release x86 app build passed.
+- Commit: 01afc70
+
+[2026-09-22] fix: detect Hikvision DVR channels before VLC launch
+- Files changed: UniversalScanner/RtspLiveViewForm.cs
+- Summary: Before opening a Hikvision-style RTSP path, the app now attempts channel discovery through /ISAPI/Streaming/channels so DVR users can choose the correct camera channel instead of always opening channel 101.
+- Verification: Release x86 app build passed. Live DVR reported channels 101/102, 201/202, 301/302, and 401/402.
+- Commit: 9c755f7
+
+[2026-09-22] fix: improve startup diagnostics and VLC detection
+- Files changed: UniversalScanner/Program.cs, UniversalScanner/RtspLiveViewForm.cs
+- Summary: Added startup/global exception handling with a crash log at %LOCALAPPDATA%\UniversalScanner\startup-crash.log. Improved VLC detection through registry App Paths, uninstall entries, standard folders, per-user folders, and PATH lookup.
+- Verification: Release x86 app build passed.
+- Commit: 08efe88
+
+[2026-09-20] docs: add multi-PC development workflow instructions
+- Files changed: AGENTS.md
+- Summary: Added repository workflow instructions for safe multi-PC Codex development, including fetch/pull rules, no force-push, no reset, and preserving existing work.
+- Verification: Documentation-only change.
+- Commit: 846ecd7
+
+[2026-09-20] initial: import clean source repository
+- Files changed: initial source import
+- Summary: Created a clean private GitHub repository from the current UniversalScanner project, excluding build outputs, captures, logs, archives, scratch folders, and local/private tooling files while keeping required source and SDK files.
+- Verification: Confirmed 258 source/project files, 27 SDK files, and 54 DeviceSDK source files were uploaded to the private repository.
+- Commit: 9107dbf
