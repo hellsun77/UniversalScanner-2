@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-15] fix: restore visible subnet scan progress and stop confirmation
+- Files changed: UniversalScanner/UniversalScanner.cs, FIXES_AND_UPDATES.txt
+- Summary: Restored live subnet progress in the visible status bar and progress bar, added immediate stopping feedback, and kept a persistent stopped-position confirmation after cancellation without blocking a following normal scan.
+- Verification: Release x86 rebuild passed with 0 errors and 4 existing warnings. Live network scanning was not run.
+- Commit: 7c4a0fbbe14253bf15e24f14df2e535fff430d15
+
 [2026-10-15] fix: stop subnet scan immediately
 - Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/NetworkTools.cs, UniversalScanner/SubnetVendorProbe.cs, FIXES_AND_UPDATES.txt
 - Summary: Added cancellation-token ownership for subnet scans, immediate cancellation for scan delays and network probes, safe abandonment of non-cancellable legacy vendor checks, and cancellation guards that prevent late results from updating the grid before normal Scan starts.

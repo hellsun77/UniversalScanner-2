@@ -52,6 +52,9 @@ namespace UniversalScanner
         private Task activeSubnetScanTask = Task.CompletedTask;
         private CancellationTokenSource activeSubnetScanCancellation;
         private int subnetStopRequestVersion;
+        private int currentSubnetScanIndex;
+        private string currentSubnetScanIp = "";
+        private int statusMessageVersion;
         private bool _normalScanFilterActive = false;
 
         public bool IsNormalScanExecuting { get; set; } = false;
@@ -565,6 +568,7 @@ namespace UniversalScanner
                 scanProgressBar.Value = 0;
 
             this.Text = "Universal Scanner";
+            SetStatusMessage("Normal scan started");
 
             _normalScanFilterActive = true;
 
@@ -600,7 +604,6 @@ namespace UniversalScanner
                 return false;
 
             stopSubnetScan = true;
-            this.Text = "Universal Scanner - Scan stopped";
 
             CancellationTokenSource cancellation = activeSubnetScanCancellation;
             if (cancellation == null || cancellation.IsCancellationRequested)
@@ -635,9 +638,13 @@ namespace UniversalScanner
             }
 
             stopSubnetScan = false;
+            currentSubnetScanIndex = 0;
+            currentSubnetScanIp = "";
+            int stopRequestVersionAtStart = subnetStopRequestVersion;
             CancellationTokenSource cancellation = new CancellationTokenSource();
             activeSubnetScanCancellation = cancellation;
             Task subnetScanTask = null;
+            bool scanFailed = false;
 
             try
             {
@@ -647,12 +654,12 @@ namespace UniversalScanner
             }
             catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
             {
-                this.Text = "Universal Scanner - Scan stopped";
             }
             catch (Exception ex)
             {
+                scanFailed = true;
                 Logger.getInstance().WriteLine(Logger.DebugLevel.Error, "Subnet scan failed: " + ex);
-                this.Text = "Universal Scanner - Scan failed";
+                SetSubnetScanStatus("Subnet scan failed");
             }
             finally
             {
@@ -664,6 +671,9 @@ namespace UniversalScanner
 
                 cancellation.Dispose();
             }
+
+            if (!scanFailed && stopRequestVersionAtStart != subnetStopRequestVersion)
+                SetSubnetScanStatus(BuildSubnetScanStoppedStatus());
         }
 
         private void stopSubnetButton_Click(object sender, EventArgs e)
@@ -3363,6 +3373,32 @@ namespace UniversalScanner
             return await task;
         }
 
+        private void PrepareSubnetScanUi()
+        {
+            currentSubnetScanIndex = 0;
+            currentSubnetScanIp = "";
+
+            if (scanProgressBar != null)
+            {
+                scanProgressBar.Minimum = 0;
+                scanProgressBar.Maximum = 254;
+                scanProgressBar.Value = 0;
+                scanProgressBar.Visible = true;
+                scanProgressBar.Refresh();
+            }
+
+            SetSubnetScanStatus("Preparing subnet scan...");
+        }
+
+        private string BuildSubnetScanStoppedStatus()
+        {
+            if (currentSubnetScanIndex <= 0 || string.IsNullOrWhiteSpace(currentSubnetScanIp))
+                return "Subnet scan stopped before the IP sweep began";
+
+            return "Subnet scan stopped at " + currentSubnetScanIp +
+                   " (" + currentSubnetScanIndex + "/254)";
+        }
+
         private async Task ScanSubnetAsync(string subnet, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -3375,11 +3411,13 @@ namespace UniversalScanner
                 if (stopSubnetScan || cancellationToken.IsCancellationRequested)
                     break;
 
+                currentSubnetScanIndex = i;
+                currentSubnetScanIp = subnet + "." + i;
                 scanProgressBar.Value = i;
                 scanProgressBar.Refresh();
 
-                this.Text = "Universal Scanner - Scanning " +
-                            subnet + "." + i + " (" + i + "/254)";
+                SetSubnetScanStatus("Scanning " + currentSubnetScanIp +
+                                    " (" + i + "/254)");
 
                 Application.DoEvents();
                 cancellationToken.ThrowIfCancellationRequested();
@@ -3387,7 +3425,7 @@ namespace UniversalScanner
                 if (IsDisposed)
                     return;
 
-                string ip = subnet + "." + i;
+                string ip = currentSubnetScanIp;
 
                 if (IsOldIpSuppressed(ip))
                     continue;
@@ -3725,15 +3763,11 @@ namespace UniversalScanner
                 }
             }
 
-            if (stopSubnetScan || cancellationToken.IsCancellationRequested)
-            {
-                this.Text = "Universal Scanner - Scan stopped";
-            }
-            else
+            if (!stopSubnetScan && !cancellationToken.IsCancellationRequested)
             {
                 scanProgressBar.Value = 254;
                 scanProgressBar.Refresh();
-                this.Text = "Universal Scanner - Scan completed";
+                SetSubnetScanStatus("Subnet scan completed");
             }
         }
 
@@ -3745,6 +3779,11 @@ namespace UniversalScanner
         private void stopSubnetButton_Click_1(object sender, EventArgs e)
         {
             subnetStopRequestVersion++;
+
+            Task subnetScanTask = activeSubnetScanTask;
+            if (subnetScanTask != null && !subnetScanTask.IsCompleted)
+                SetSubnetScanStatus("Stopping subnet scan...");
+
             RequestSubnetScanStop();
         }
 
@@ -3758,6 +3797,7 @@ namespace UniversalScanner
         {
             currentScanSessionId = Guid.NewGuid();
 
+            PrepareSubnetScanUi();
             ClearDeviceListPreservingRecentIpChanges();
 
             if (scanEvent != null)
@@ -3783,6 +3823,7 @@ namespace UniversalScanner
         {
             currentScanSessionId = Guid.NewGuid();
 
+            PrepareSubnetScanUi();
             ClearDeviceListPreservingRecentIpChanges();
 
             if (scanEvent != null)
@@ -5627,9 +5668,40 @@ namespace UniversalScanner
                 activePingMonitor.CancelPings();
         }
 
-        private async Task ShowStatusAsync(string text, int delay = 0)
+        private void ApplyStatusMessage(string text, int version)
         {
-            if (statusLabel == null)
+            if (IsDisposed || Disposing)
+                return;
+
+            if (InvokeRequired)
+            {
+                try
+                {
+                    BeginInvoke(new MethodInvoker(() => ApplyStatusMessage(text, version)));
+                }
+                catch
+                {
+                }
+
+                return;
+            }
+
+            if (version == Volatile.Read(ref statusMessageVersion) && statusLabel != null)
+                statusLabel.Text = text;
+        }
+
+        private int SetStatusMessage(string text)
+        {
+            int version = Interlocked.Increment(ref statusMessageVersion);
+            ApplyStatusMessage(text, version);
+            return version;
+        }
+
+        private void SetSubnetScanStatus(string text)
+        {
+            int version = Interlocked.Increment(ref statusMessageVersion);
+
+            if (IsDisposed || Disposing)
                 return;
 
             if (InvokeRequired)
@@ -5638,43 +5710,41 @@ namespace UniversalScanner
                 {
                     BeginInvoke(new MethodInvoker(() =>
                     {
-                        if (!IsDisposed && statusLabel != null)
+                        if (version != Volatile.Read(ref statusMessageVersion) || IsDisposed || Disposing)
+                            return;
+
+                        Text = "Universal Scanner - " + text;
+                        if (statusLabel != null)
                             statusLabel.Text = text;
                     }));
                 }
                 catch
                 {
                 }
+
+                return;
             }
-            else
-            {
+
+            if (version != Volatile.Read(ref statusMessageVersion))
+                return;
+
+            Text = "Universal Scanner - " + text;
+            if (statusLabel != null)
                 statusLabel.Text = text;
-            }
+        }
+
+        private async Task ShowStatusAsync(string text, int delay = 0)
+        {
+            int version = SetStatusMessage(text);
 
             if (delay > 0)
             {
                 await Task.Delay(delay);
 
-                if (!IsDisposed && statusLabel != null)
+                int readyVersion = unchecked(version + 1);
+                if (Interlocked.CompareExchange(ref statusMessageVersion, readyVersion, version) == version)
                 {
-                    if (InvokeRequired)
-                    {
-                        try
-                        {
-                            BeginInvoke(new MethodInvoker(() =>
-                            {
-                                if (!IsDisposed && statusLabel != null)
-                                    statusLabel.Text = "Ready";
-                            }));
-                        }
-                        catch
-                        {
-                        }
-                    }
-                    else
-                    {
-                        statusLabel.Text = "Ready";
-                    }
+                    ApplyStatusMessage("Ready", readyVersion);
                 }
             }
         }
