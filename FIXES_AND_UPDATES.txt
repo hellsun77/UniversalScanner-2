@@ -166,3 +166,9 @@ Entries
 - Summary: Added a clickable GitHub repository link to the About dialog and a warning message if the default browser cannot be opened.
 - Verification: Release x86 app build passed with 4 existing compiler warnings and 0 errors.
 - Commit: 9e50f46
+
+[2026-10-17] update: advance app version to 2.1
+- Files changed: UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, UniversalScanner/UniversalScanner.cs, README.md, FIXES_AND_UPDATES.txt
+- Summary: Advanced the displayed app version to 2.1 in assembly metadata, the splash screen, About dialog, and repository front page. Updated the About build date.
+- Verification: Release x86 app build passed with 4 existing compiler warnings and 0 errors.
+- Commit: 611c3c2

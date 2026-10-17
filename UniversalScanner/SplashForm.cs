@@ -65,7 +65,7 @@ namespace UniversalScanner
             statusLabel.SetBounds(52, 186, 476, 30);
 
             versionLabel = new Label();
-            versionLabel.Text = "Version 2.0";
+            versionLabel.Text = "Version 2.1";
             versionLabel.Font = new Font("Segoe UI", 9, FontStyle.Regular);
             versionLabel.ForeColor = Color.FromArgb(99, 113, 129);
             versionLabel.TextAlign = ContentAlignment.MiddleLeft;
