@@ -161,3 +161,8 @@ Entries
 - Summary: Created a clean private GitHub repository from the current UniversalScanner project, excluding build outputs, captures, logs, archives, scratch folders, and local/private tooling files while keeping required source and SDK files.
 - Verification: Confirmed 258 source/project files, 27 SDK files, and 54 DeviceSDK source files were uploaded to the private repository.
 - Commit: 9107dbf
+[2026-10-17] update: add GitHub repository link to About dialog
+- Files changed: UniversalScanner/UniversalScanner.cs, FIXES_AND_UPDATES.txt
+- Summary: Added a clickable GitHub repository link to the About dialog and a warning message if the default browser cannot be opened.
+- Verification: Release x86 app build passed with 4 existing compiler warnings and 0 errors.
+- Commit: 9e50f46

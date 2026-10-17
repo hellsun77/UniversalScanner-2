@@ -7241,6 +7241,32 @@ namespace UniversalScanner
                 ForeColor = Color.FromArgb(63, 77, 94)
             };
 
+            LinkLabel repositoryLink = new LinkLabel
+            {
+                Text = "GitHub repository",
+                Left = 28,
+                Top = 222,
+                Width = 220,
+                Height = 22,
+                LinkColor = accentBlue,
+                ActiveLinkColor = navy,
+                VisitedLinkColor = accentBlue
+            };
+            repositoryLink.LinkClicked += (sender, e) =>
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo("https://github.com/hellsun77/UniversalScanner-2")
+                    {
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, "Could not open browser:\r\n" + ex.Message, "Open Browser", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            };
+
             Button okButton = new Button
             {
                 Text = "OK",
@@ -7262,6 +7288,7 @@ namespace UniversalScanner
             Controls.Add(buildLabel);
             Controls.Add(copyrightLabel);
             Controls.Add(licenseLabel);
+            Controls.Add(repositoryLink);
             Controls.Add(okButton);
 
             AcceptButton = okButton;
