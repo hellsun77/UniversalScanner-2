@@ -163,6 +163,27 @@ namespace UniversalScanner
             UpdateAdvancedSelectedDevicePanel();
         }
 
+        private void RefreshAdvancedViewTheme()
+        {
+            if (advancedViewPanel == null)
+                return;
+
+            AppVisualPalette palette = AppVisualTheme.Current;
+            advancedViewPanel.BackColor = palette.Surface;
+            advancedViewTitleLabel.ForeColor = palette.AccentText;
+            advancedViewStatusLabel.ForeColor = palette.TextPrimary;
+            advancedViewDatabaseLabel.ForeColor = palette.TextSecondary;
+            advancedSelectedDeviceLabel.ForeColor = palette.TextPrimary;
+            advancedConfidenceLabel.ForeColor = palette.TextPrimary;
+            advancedSaveStatusLabel.ForeColor = palette.TextSecondary;
+            saveSelectedFingerprintButton.BackColor = palette.Accent;
+            saveSelectedFingerprintButton.ForeColor = Color.White;
+            saveSelectedFingerprintButton.FlatAppearance.BorderColor = palette.Accent;
+            saveSelectedFingerprintButton.FlatAppearance.MouseOverBackColor = palette.AccentHover;
+            saveSelectedFingerprintButton.FlatAppearance.MouseDownBackColor = palette.AccentPressed;
+            advancedViewPanel.Invalidate(true);
+        }
+
         private void AddTreatAsBrandRightClickMenu()
         {
             if (rightClickMenu == null || treatSelectedDeviceAsBrandMenuItem != null)

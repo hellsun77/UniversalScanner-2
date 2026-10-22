@@ -73,6 +73,10 @@ namespace UniversalScanner
         private ToolStripMenuItem showSelectedByVlcMenuItem;
         private ToolStripMenuItem pingSelectedOnceMenuItem;
         private ToolStripMenuItem showUniqueIdColumnMenuItem;
+        private ToolStripMenuItem themeToolStripMenuItem;
+        private ToolStripMenuItem systemThemeToolStripMenuItem;
+        private ToolStripMenuItem lightThemeToolStripMenuItem;
+        private ToolStripMenuItem darkThemeToolStripMenuItem;
         private ToolStripProfessionalRenderer modernMenuRenderer;
         private CancellationTokenSource pingCancellationTokenSource;
         private PingMonitorForm activePingMonitor;
@@ -179,6 +183,7 @@ namespace UniversalScanner
             BuildStatusBar();
             BuildRightClickMenu();
             InitializeAdvancedArchitecture();
+            AddThemeMenu();
             rightClickMenu.Opening += rightClickMenu_Opening;
 
 
@@ -236,6 +241,47 @@ namespace UniversalScanner
             int toolsIndex = menuStrip1.Items.IndexOf(toolsToolStripMenuItem);
             int insertIndex = toolsIndex >= 0 ? toolsIndex + 1 : menuStrip1.Items.Count;
             menuStrip1.Items.Insert(insertIndex, loginToolStripMenuItem);
+        }
+
+        private void AddThemeMenu()
+        {
+            themeToolStripMenuItem = new ToolStripMenuItem("Theme");
+            systemThemeToolStripMenuItem = new ToolStripMenuItem("Use Windows setting");
+            lightThemeToolStripMenuItem = new ToolStripMenuItem("Light");
+            darkThemeToolStripMenuItem = new ToolStripMenuItem("Dark");
+
+            systemThemeToolStripMenuItem.Click += (sender, e) => ChangeTheme(AppThemePreference.System);
+            lightThemeToolStripMenuItem.Click += (sender, e) => ChangeTheme(AppThemePreference.Light);
+            darkThemeToolStripMenuItem.Click += (sender, e) => ChangeTheme(AppThemePreference.Dark);
+
+            themeToolStripMenuItem.DropDownItems.Add(systemThemeToolStripMenuItem);
+            themeToolStripMenuItem.DropDownItems.Add(lightThemeToolStripMenuItem);
+            themeToolStripMenuItem.DropDownItems.Add(darkThemeToolStripMenuItem);
+            toolsToolStripMenuItem.DropDownItems.Add(new ToolStripSeparator());
+            toolsToolStripMenuItem.DropDownItems.Add(themeToolStripMenuItem);
+            UpdateThemeMenuChecks();
+        }
+
+        private void ChangeTheme(AppThemePreference preference)
+        {
+            AppVisualTheme.SetPreference(preference);
+            foreach (Form form in Application.OpenForms.Cast<Form>().ToArray())
+                AppVisualTheme.Apply(form);
+
+            RefreshMainVisualTheme();
+            RefreshAdvancedViewTheme();
+            UpdateThemeMenuChecks();
+        }
+
+        private void UpdateThemeMenuChecks()
+        {
+            if (systemThemeToolStripMenuItem == null)
+                return;
+
+            AppThemePreference preference = AppVisualTheme.Preference;
+            systemThemeToolStripMenuItem.Checked = preference == AppThemePreference.System;
+            lightThemeToolStripMenuItem.Checked = preference == AppThemePreference.Light;
+            darkThemeToolStripMenuItem.Checked = preference == AppThemePreference.Dark;
         }
 
         private void singleEnableItem_Click(object sender, EventArgs e)
@@ -6694,7 +6740,6 @@ namespace UniversalScanner
             AppVisualPalette palette = AppVisualTheme.Current;
             Color navy = palette.Header;
             Color toolbarBack = palette.WindowBackground;
-            Color borderBlue = palette.Border;
             Color scanBlue = palette.Accent;
 
             BackColor = toolbarBack;
@@ -6720,7 +6765,7 @@ namespace UniversalScanner
             };
             toolbarPanel.Paint += (sender, e) =>
             {
-                using (Pen pen = new Pen(borderBlue))
+                using (Pen pen = new Pen(AppVisualTheme.Current.Border))
                     e.Graphics.DrawLine(pen, 0, toolbarPanel.Height - 1, toolbarPanel.Width, toolbarPanel.Height - 1);
             };
 
@@ -6836,6 +6881,70 @@ namespace UniversalScanner
             ResumeLayout(false);
         }
 
+        private void RefreshMainVisualTheme()
+        {
+            if (!mainDesignApplied || headerPanel == null || toolbarPanel == null)
+                return;
+
+            AppVisualPalette palette = AppVisualTheme.Current;
+            BackColor = palette.WindowBackground;
+            ForeColor = palette.TextPrimary;
+            headerPanel.BackColor = palette.Header;
+            toolbarPanel.BackColor = palette.WindowBackground;
+            headerTitleLabel.ForeColor = Color.White;
+            headerSubtitleLabel.ForeColor = palette.HeaderSecondaryText;
+            headerTimeLabel.ForeColor = Color.White;
+            headerDateLabel.ForeColor = palette.HeaderSecondaryText;
+
+            modernMenuRenderer = new ModernMenuRenderer(palette);
+            StyleMainMenu(palette.Header);
+            ReplaceControlImage(scanButton, AppVisualTheme.CreateIcon(AppVisualIcon.Scan, Color.White));
+            ReplaceControlImage(scanSubnetButton, AppVisualTheme.CreateIcon(AppVisualIcon.Network, Color.White));
+            ReplaceControlImage(stopSubnetButton, AppVisualTheme.CreateIcon(AppVisualIcon.Stop, palette.IsDark ? Color.FromArgb(255, 174, 166) : palette.Danger));
+            ReplaceControlImage(aboutButton, AppVisualTheme.CreateIcon(AppVisualIcon.Info, palette.TextSecondary));
+            ReplaceMenuImage(toolsToolStripMenuItem, AppVisualTheme.CreateIcon(AppVisualIcon.Tools, Color.White));
+            ReplaceMenuImage(loginToolStripMenuItem, AppVisualTheme.CreateIcon(AppVisualIcon.Lock, Color.White));
+
+            StyleToolbarButton(scanButton, palette.Accent, Color.White, palette.Accent, true);
+            StyleToolbarButton(scanSubnetButton, palette.Accent, Color.White, palette.Accent, true);
+            StyleStopToolbarButton(stopSubnetButton);
+            StyleToolbarButton(aboutButton, palette.Surface, palette.TextPrimary, palette.BorderStrong, false);
+            subnetTextBox.BackColor = palette.InputBackground;
+            subnetTextBox.ForeColor = palette.TextPrimary;
+            scanProgressBar.BackColor = palette.SurfaceMuted;
+            scanProgressBar.ForeColor = palette.Accent;
+            newVersion.LinkColor = palette.Accent;
+            newVersion.ActiveLinkColor = palette.AccentPressed;
+            newVersion.VisitedLinkColor = palette.Accent;
+
+            StyleMainGrid();
+            StyleStatusStrip();
+            ApplyMenuTheme(rightClickMenu);
+            AppVisualTheme.ApplyWindowChrome(this);
+            AppVisualTheme.ApplyProgressBarColors(scanProgressBar);
+            toolbarPanel.Invalidate();
+            Invalidate(true);
+        }
+
+        private static void ReplaceControlImage(Button button, Image image)
+        {
+            Image oldImage = button.Image;
+            button.Image = image;
+            if (oldImage != null)
+                oldImage.Dispose();
+        }
+
+        private static void ReplaceMenuImage(ToolStripMenuItem item, Image image)
+        {
+            if (item == null)
+                return;
+
+            Image oldImage = item.Image;
+            item.Image = image;
+            if (oldImage != null)
+                oldImage.Dispose();
+        }
+
         private void ScannerWindow_DesignResize(object sender, EventArgs e)
         {
             UpdateMainDesignLayout();
@@ -6879,13 +6988,14 @@ namespace UniversalScanner
             scanSubnetButton.SetBounds(212, 27, 116, 30);
             subnetTextBox.SetBounds(334, 31, 100, 23);
 
-            int rightStart = Math.Max(600, toolbarPanel.Width - 210);
-            stopSubnetButton.SetBounds(rightStart, 27, 108, 30);
             aboutButton.SetBounds(toolbarPanel.Width - 94, 27, 76, 30);
 
             int progressLeft = 454;
-            int progressRight = Math.Max(progressLeft + 120, stopSubnetButton.Left - 420);
+            int progressRight = Math.Min(
+                toolbarPanel.Width - 220,
+                Math.Max(progressLeft + 120, toolbarPanel.Width - 630));
             scanProgressBar.SetBounds(progressLeft, 27, progressRight - progressLeft, 30);
+            stopSubnetButton.SetBounds(scanProgressBar.Right + 12, 27, 108, 30);
 
             int reservedAdvancedHeight = GetAdvancedViewReservedHeight(contentTop, statusHeight);
             dataGridView1.SetBounds(0, contentTop, ClientSize.Width, Math.Max(100, ClientSize.Height - contentTop - statusHeight - reservedAdvancedHeight));
@@ -7080,6 +7190,13 @@ namespace UniversalScanner
         Info
     }
 
+    public enum AppThemePreference
+    {
+        System,
+        Light,
+        Dark
+    }
+
     public sealed class AppVisualPalette
     {
         public bool IsDark { get; private set; }
@@ -7169,11 +7286,14 @@ namespace UniversalScanner
 
     public static class AppVisualTheme
     {
+        private const string ThemeRegistryPath = @"Software\UniversalScanner";
+        private const string ThemeRegistryValue = "Theme";
         private const int DwmUseImmersiveDarkModeBefore20H1 = 19;
         private const int DwmUseImmersiveDarkMode = 20;
         private const int ProgressSetBarColor = 0x0409;
         private const int ProgressSetBackgroundColor = 0x2001;
-        private static readonly AppVisualPalette current = AppVisualPalette.Create(IsWindowsDarkTheme());
+        private static AppThemePreference preference = LoadPreference();
+        private static AppVisualPalette current = AppVisualPalette.Create(ResolveDarkTheme(preference));
 
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr windowHandle, int attribute, ref int value, int size);
@@ -7185,6 +7305,7 @@ namespace UniversalScanner
         private static extern IntPtr SendMessage(IntPtr windowHandle, int message, IntPtr wParam, IntPtr lParam);
 
         public static AppVisualPalette Current => current;
+        public static AppThemePreference Preference => preference;
         public static Font BodyFont => new Font("Segoe UI", 9F, FontStyle.Regular);
         public static Font CaptionFont => new Font("Segoe UI", 8.5F, FontStyle.Regular);
         public static Font CaptionStrongFont => new Font("Segoe UI Semibold", 8.5F, FontStyle.Regular);
@@ -7196,14 +7317,55 @@ namespace UniversalScanner
         public static Font DisplayFont => new Font("Segoe UI Semibold", 16F, FontStyle.Regular);
         public static Font ClockFont => new Font("Segoe UI Semibold", 13F, FontStyle.Regular);
 
-        private static bool IsWindowsDarkTheme()
+        public static void SetPreference(AppThemePreference value)
         {
+            preference = value;
+            current = AppVisualPalette.Create(ResolveDarkTheme(preference));
+
+            try
+            {
+                using (Microsoft.Win32.RegistryKey key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(ThemeRegistryPath))
+                    key?.SetValue(ThemeRegistryValue, value.ToString(), Microsoft.Win32.RegistryValueKind.String);
+            }
+            catch
+            {
+            }
+        }
+
+        private static AppThemePreference LoadPreference()
+        {
+            try
+            {
+                using (Microsoft.Win32.RegistryKey key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(ThemeRegistryPath))
+                {
+                    string saved = key?.GetValue(ThemeRegistryValue) as string;
+                    if (Enum.TryParse(saved, true, out AppThemePreference savedPreference))
+                        return savedPreference;
+                }
+            }
+            catch
+            {
+            }
+
             string overrideTheme = Environment.GetEnvironmentVariable("UNIVERSALSCANNER_THEME");
             if (string.Equals(overrideTheme, "dark", StringComparison.OrdinalIgnoreCase))
-                return true;
+                return AppThemePreference.Dark;
             if (string.Equals(overrideTheme, "light", StringComparison.OrdinalIgnoreCase))
-                return false;
+                return AppThemePreference.Light;
+            return AppThemePreference.System;
+        }
 
+        private static bool ResolveDarkTheme(AppThemePreference value)
+        {
+            if (value == AppThemePreference.Dark)
+                return true;
+            if (value == AppThemePreference.Light)
+                return false;
+            return IsWindowsDarkTheme();
+        }
+
+        private static bool IsWindowsDarkTheme()
+        {
             try
             {
                 using (Microsoft.Win32.RegistryKey key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
@@ -7292,12 +7454,12 @@ namespace UniversalScanner
 
         public static void ApplyWindowChrome(Form form)
         {
-            if (form == null || !Current.IsDark)
+            if (form == null)
                 return;
 
             try
             {
-                int enabled = 1;
+                int enabled = Current.IsDark ? 1 : 0;
                 IntPtr handle = form.Handle;
                 if (DwmSetWindowAttribute(handle, DwmUseImmersiveDarkMode, ref enabled, sizeof(int)) != 0)
                     DwmSetWindowAttribute(handle, DwmUseImmersiveDarkModeBefore20H1, ref enabled, sizeof(int));

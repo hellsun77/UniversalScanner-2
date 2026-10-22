@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-22] update: add Tools theme selector and align Stop Scan with progress
+- Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/UniversalScanner.AdvancedView.cs, FIXES_AND_UPDATES.txt
+- Summary: Added a persistent Tools > Theme menu with Windows setting, Light, and Dark choices that apply immediately, and moved the existing Stop Scan button beside the scan progress bar without changing its command or event binding.
+- Verification: Release x86 rebuild passed with 0 errors and 4 existing warnings after closing the previously launched test copy; Light, Dark, and Windows-setting menu selections were exercised successfully, and light/dark renders were visually inspected with the Stop Scan button aligned 12 pixels after the progress bar and no overlap.
+- Commit: c009646a085fecbb3469542d7ff4b1c4ac7ee398
+
 [2026-10-22] fix: refine main Stop Scan button appearance
 - Files changed: UniversalScanner/UniversalScanner.cs, FIXES_AND_UPDATES.txt
 - Summary: Widened the existing Stop Scan button so its full caption is visible, replaced the harsh solid-red treatment with a refined danger outline for light and dark themes, and improved the stop icon and interaction states without changing its position, command, or event binding.
