@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-22] fix: refine main Stop Scan button appearance
+- Files changed: UniversalScanner/UniversalScanner.cs, FIXES_AND_UPDATES.txt
+- Summary: Widened the existing Stop Scan button so its full caption is visible, replaced the harsh solid-red treatment with a refined danger outline for light and dark themes, and improved the stop icon and interaction states without changing its position, command, or event binding.
+- Verification: Release x86 rebuild passed with 0 errors and 4 existing warnings; final light and dark main-window renders were visually inspected with the complete caption visible and no overlap.
+- Commit: 3d75b80d5bd12d9b7c0cda3bfd3d96e91b4c70a8
+
 [2026-10-22] update: apply premium light and dark WinForms visual system
 - Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/UniversalScanner.AdvancedView.cs, UniversalScanner/SplashForm.cs, UniversalScanner/SpecialThanksForm.cs, and existing dialog form source files; FIXES_AND_UPDATES.txt
 - Summary: Added a centralized Windows 11-inspired visual palette that follows the Windows app theme, consistent Segoe UI typography, drawn command icons, polished buttons and interaction states, modern menus, improved device-grid and status styling, dark window chrome, themed progress bars, and coordinated styling for existing dialogs without changing their controls, commands, event bindings, workflows, or device logic.

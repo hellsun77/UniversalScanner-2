@@ -6696,7 +6696,6 @@ namespace UniversalScanner
             Color toolbarBack = palette.WindowBackground;
             Color borderBlue = palette.Border;
             Color scanBlue = palette.Accent;
-            Color stopRed = palette.Danger;
 
             BackColor = toolbarBack;
             ForeColor = palette.TextPrimary;
@@ -6806,11 +6805,11 @@ namespace UniversalScanner
             StyleMainMenu(navy);
             StyleToolbarButton(scanButton, scanBlue, Color.White, scanBlue, true);
             StyleToolbarButton(scanSubnetButton, scanBlue, Color.White, scanBlue, true);
-            StyleToolbarButton(stopSubnetButton, stopRed, Color.White, stopRed, true);
+            StyleStopToolbarButton(stopSubnetButton);
             StyleToolbarButton(aboutButton, palette.Surface, palette.TextPrimary, palette.BorderStrong, false);
             scanButton.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Scan, Color.White);
             scanSubnetButton.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Network, Color.White);
-            stopSubnetButton.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Stop, Color.White);
+            stopSubnetButton.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Stop, stopSubnetButton.ForeColor);
             aboutButton.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Info, palette.TextSecondary);
             StyleMainGrid();
             StyleStatusStrip();
@@ -6880,8 +6879,8 @@ namespace UniversalScanner
             scanSubnetButton.SetBounds(212, 27, 116, 30);
             subnetTextBox.SetBounds(334, 31, 100, 23);
 
-            int rightStart = Math.Max(600, toolbarPanel.Width - 190);
-            stopSubnetButton.SetBounds(rightStart, 27, 86, 30);
+            int rightStart = Math.Max(600, toolbarPanel.Width - 210);
+            stopSubnetButton.SetBounds(rightStart, 27, 108, 30);
             aboutButton.SetBounds(toolbarPanel.Width - 94, 27, 76, 30);
 
             int progressLeft = 454;
@@ -7000,6 +6999,29 @@ namespace UniversalScanner
             button.ImageAlign = ContentAlignment.MiddleLeft;
             button.TextImageRelation = TextImageRelation.ImageBeforeText;
             button.Padding = new Padding(5, 0, 5, 0);
+        }
+
+        private void StyleStopToolbarButton(Button button)
+        {
+            AppVisualPalette palette = AppVisualTheme.Current;
+            Color background = palette.IsDark
+                ? Color.FromArgb(52, 32, 33)
+                : Color.FromArgb(255, 244, 243);
+            Color foreground = palette.IsDark
+                ? Color.FromArgb(255, 174, 166)
+                : palette.Danger;
+            Color border = palette.IsDark
+                ? Color.FromArgb(142, 65, 58)
+                : Color.FromArgb(225, 154, 147);
+
+            StyleToolbarButton(button, background, foreground, border, false);
+            button.FlatAppearance.MouseOverBackColor = palette.IsDark
+                ? Color.FromArgb(84, 37, 36)
+                : Color.FromArgb(253, 231, 229);
+            button.FlatAppearance.MouseDownBackColor = palette.IsDark
+                ? Color.FromArgb(111, 43, 38)
+                : Color.FromArgb(249, 211, 207);
+            button.Padding = new Padding(7, 0, 7, 0);
         }
 
         private void StyleMainGrid()
@@ -7223,7 +7245,8 @@ namespace UniversalScanner
                 }
                 else if (icon == AppVisualIcon.Stop)
                 {
-                    graphics.FillRectangle(brush, 3.5F, 3.5F, 9F, 9F);
+                    graphics.DrawEllipse(pen, 1.5F, 1.5F, 13F, 13F);
+                    graphics.FillRectangle(brush, 5.25F, 5.25F, 5.5F, 5.5F);
                 }
                 else if (icon == AppVisualIcon.Info)
                 {
