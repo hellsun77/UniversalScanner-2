@@ -96,6 +96,7 @@ namespace UniversalScanner
         private Label headerSubtitleLabel;
         private Label headerTimeLabel;
         private Label headerDateLabel;
+        private Label primaryScanLabel;
         private Label subnetModuleLabel;
         private Panel subnetInputPanel;
         private PictureBox subnetInputIconBox;
@@ -6772,6 +6773,16 @@ namespace UniversalScanner
                     e.Graphics.DrawLine(pen, 0, toolbarPanel.Height - 1, toolbarPanel.Width, toolbarPanel.Height - 1);
             };
 
+            primaryScanLabel = new Label
+            {
+                AutoSize = false,
+                BackColor = Color.Transparent,
+                ForeColor = palette.AccentText,
+                Font = new Font("Segoe UI Semibold", 7.5F, FontStyle.Regular),
+                Text = "DEVICE DISCOVERY",
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
             subnetModuleLabel = new Label
             {
                 AutoSize = false,
@@ -6865,6 +6876,7 @@ namespace UniversalScanner
             toolsToolStripMenuItem.Text = "Tools";
             toolsToolStripMenuItem.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Tools, Color.White);
             loginToolStripMenuItem.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Lock, Color.White);
+            toolbarPanel.Controls.Add(primaryScanLabel);
             toolbarPanel.Controls.Add(scanButton);
             toolbarPanel.Controls.Add(newVersion);
             toolbarPanel.Controls.Add(subnetModuleLabel);
@@ -6877,7 +6889,7 @@ namespace UniversalScanner
             toolbarPanel.Controls.Add(aboutButton);
 
             StyleMainMenu(navy);
-            StyleToolbarButton(scanButton, scanBlue, Color.White, scanBlue, true);
+            StylePrimaryScanButton(scanButton);
             StyleToolbarButton(scanSubnetButton, scanBlue, Color.White, scanBlue, true);
             StyleStopToolbarButton(stopSubnetButton);
             StyleToolbarButton(aboutButton, palette.Surface, palette.TextPrimary, palette.BorderStrong, false);
@@ -6924,6 +6936,7 @@ namespace UniversalScanner
             headerSubtitleLabel.ForeColor = palette.HeaderSecondaryText;
             headerTimeLabel.ForeColor = Color.White;
             headerDateLabel.ForeColor = palette.HeaderSecondaryText;
+            primaryScanLabel.ForeColor = palette.AccentText;
             subnetModuleLabel.ForeColor = palette.TextSecondary;
             subnetInputPanel.BackColor = palette.InputBackground;
 
@@ -6937,7 +6950,7 @@ namespace UniversalScanner
             ReplaceMenuImage(loginToolStripMenuItem, AppVisualTheme.CreateIcon(AppVisualIcon.Lock, Color.White));
             ReplacePictureImage(subnetInputIconBox, AppVisualTheme.CreateIcon(AppVisualIcon.Network, palette.TextSecondary));
 
-            StyleToolbarButton(scanButton, palette.Accent, Color.White, palette.Accent, true);
+            StylePrimaryScanButton(scanButton);
             StyleToolbarButton(scanSubnetButton, palette.Accent, Color.White, palette.Accent, true);
             StyleStopToolbarButton(stopSubnetButton);
             StyleToolbarButton(aboutButton, palette.Surface, palette.TextPrimary, palette.BorderStrong, false);
@@ -7033,8 +7046,9 @@ namespace UniversalScanner
                 headerDateLabel.SetBounds(clockLeft, 36, clockWidth, 18);
             }
 
-            scanButton.SetBounds(18, 27, 88, 30);
-            newVersion.SetBounds(114, 35, 110, 18);
+            primaryScanLabel.SetBounds(18, 7, 150, 16);
+            scanButton.SetBounds(18, 25, 150, 34);
+            newVersion.SetBounds(toolbarPanel.Width - 224, 7, 110, 18);
             subnetModuleLabel.SetBounds(212, 7, 244, 16);
             scanSubnetButton.SetBounds(212, 27, 120, 30);
             subnetInputPanel.SetBounds(340, 27, 116, 30);
@@ -7162,6 +7176,30 @@ namespace UniversalScanner
             button.ImageAlign = ContentAlignment.MiddleLeft;
             button.TextImageRelation = TextImageRelation.ImageBeforeText;
             button.Padding = new Padding(5, 0, 5, 0);
+        }
+
+        private void StylePrimaryScanButton(Button button)
+        {
+            AppVisualPalette palette = AppVisualTheme.Current;
+            Color background = palette.IsDark
+                ? Color.FromArgb(0, 126, 224)
+                : Color.FromArgb(0, 100, 184);
+            Color border = palette.IsDark
+                ? Color.FromArgb(93, 199, 255)
+                : Color.FromArgb(0, 72, 140);
+
+            StyleToolbarButton(button, background, Color.White, border, true);
+            button.FlatAppearance.BorderSize = 2;
+            button.FlatAppearance.MouseOverBackColor = palette.IsDark
+                ? Color.FromArgb(18, 146, 239)
+                : Color.FromArgb(0, 113, 207);
+            button.FlatAppearance.MouseDownBackColor = palette.IsDark
+                ? Color.FromArgb(0, 98, 181)
+                : Color.FromArgb(0, 78, 146);
+            button.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Regular);
+            button.ImageAlign = ContentAlignment.MiddleLeft;
+            button.TextAlign = ContentAlignment.MiddleCenter;
+            button.Padding = new Padding(10, 0, 10, 0);
         }
 
         private void StyleStopToolbarButton(Button button)

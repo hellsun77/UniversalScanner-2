@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-22] update: emphasize primary Scan action and advance version to 2.5
+- Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
+- Summary: Increased the visual prominence of the existing main Scan button with a wider and taller primary-action treatment, brighter blue surface, stronger border, larger semibold typography, clearer hover and pressed colors, and a Device Discovery caption without changing the button name, click handler, or scan behavior. Advanced the synchronized application version from 2.4 to 2.5.
+- Verification: Release x86 rebuild passed with 0 errors and 4 existing warnings; light and dark main-window renders were visually inspected with the Scan button clearly dominant and no clipping or overlap, and the rebuilt executable reports File Version and Product Version 2.5.0.0.
+- Commit: 7ff979d1df966893a57882fe99c6ce53d61d10f1
+
 [2026-10-22] update: enhance Subnet Discovery controls and advance version to 2.4
 - Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
 - Summary: Refined the existing subnet scan area with a compact Subnet Discovery caption, aligned button and input heights, a themed network icon, a stronger input boundary, and improved spacing into the progress indicator without changing the subnet value, scan command, event handler, or workflow. Advanced the synchronized application version from 2.3 to 2.4.
