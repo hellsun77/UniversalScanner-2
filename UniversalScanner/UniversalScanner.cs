@@ -6892,7 +6892,7 @@ namespace UniversalScanner
             StylePrimaryScanButton(scanButton);
             StyleToolbarButton(scanSubnetButton, scanBlue, Color.White, scanBlue, true);
             StyleStopToolbarButton(stopSubnetButton);
-            StyleToolbarButton(aboutButton, palette.Surface, palette.TextPrimary, palette.BorderStrong, false);
+            StyleAboutToolbarButton(aboutButton);
             scanButton.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Scan, Color.White);
             scanSubnetButton.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Network, Color.White);
             stopSubnetButton.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Stop, stopSubnetButton.ForeColor);
@@ -6953,7 +6953,7 @@ namespace UniversalScanner
             StylePrimaryScanButton(scanButton);
             StyleToolbarButton(scanSubnetButton, palette.Accent, Color.White, palette.Accent, true);
             StyleStopToolbarButton(stopSubnetButton);
-            StyleToolbarButton(aboutButton, palette.Surface, palette.TextPrimary, palette.BorderStrong, false);
+            StyleAboutToolbarButton(aboutButton);
             subnetTextBox.BackColor = palette.InputBackground;
             subnetTextBox.ForeColor = palette.TextPrimary;
             scanProgressBar.BackColor = palette.SurfaceMuted;
@@ -7055,7 +7055,7 @@ namespace UniversalScanner
             subnetInputIconBox.SetBounds(7, 6, 18, 18);
             subnetTextBox.SetBounds(31, 7, 77, 18);
 
-            aboutButton.SetBounds(toolbarPanel.Width - 94, 27, 76, 30);
+            aboutButton.SetBounds(toolbarPanel.Width - 106, 27, 88, 30);
 
             int progressLeft = 476;
             int progressRight = Math.Min(
@@ -7200,6 +7200,16 @@ namespace UniversalScanner
             button.ImageAlign = ContentAlignment.MiddleLeft;
             button.TextAlign = ContentAlignment.MiddleCenter;
             button.Padding = new Padding(10, 0, 10, 0);
+        }
+
+        private void StyleAboutToolbarButton(Button button)
+        {
+            AppVisualPalette palette = AppVisualTheme.Current;
+            StyleToolbarButton(button, palette.Surface, palette.TextPrimary, palette.BorderStrong, false);
+            button.ImageAlign = ContentAlignment.MiddleLeft;
+            button.TextAlign = ContentAlignment.MiddleRight;
+            button.TextImageRelation = TextImageRelation.Overlay;
+            button.Padding = new Padding(7, 0, 7, 0);
         }
 
         private void StyleStopToolbarButton(Button button)
