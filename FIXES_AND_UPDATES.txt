@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-22] update: advance app version to 2.2
+- Files changed: UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, UniversalScanner/UniversalScanner.cs, README.md, FIXES_AND_UPDATES.txt
+- Summary: Advanced UniversalScanner from version 2.1 to 2.2 across assembly metadata, the splash screen, About dialog, and repository front page, and updated the About build date for the current Release build.
+- Verification: Release x86 rebuild passed with 0 errors and 4 existing warnings; the rebuilt executable reports File Version 2.2.0.0 and Product Version 2.2.0.0, and the splash, About date, and README version strings were confirmed as synchronized.
+- Commit: 28493e229360efebfec50dfc958b8cf12994ad68
+
 [2026-10-22] update: add Tools theme selector and align Stop Scan with progress
 - Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/UniversalScanner.AdvancedView.cs, FIXES_AND_UPDATES.txt
 - Summary: Added a persistent Tools > Theme menu with Windows setting, Light, and Dark choices that apply immediately, and moved the existing Stop Scan button beside the scan progress bar without changing its command or event binding.

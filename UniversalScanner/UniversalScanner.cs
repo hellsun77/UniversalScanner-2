@@ -2563,7 +2563,7 @@ namespace UniversalScanner
             using (ModernAboutDialog aboutDialog = new ModernAboutDialog(
                 versionInfo.ProductName,
                 versionInfo.FileMajorPart + "." + versionInfo.FileMinorPart,
-                "October 17, 2026",
+                "October 22, 2026",
                 versionInfo.LegalCopyright))
             {
                 aboutDialog.ShowDialog(this);
