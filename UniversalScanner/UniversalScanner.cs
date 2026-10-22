@@ -224,7 +224,7 @@ namespace UniversalScanner
 
         private void AddLoginMenuItem()
         {
-            loginToolStripMenuItem = new ToolStripMenuItem("\U0001F510  Login");
+            loginToolStripMenuItem = new ToolStripMenuItem("Login");
             loginToolStripMenuItem.Click += (s, ev) =>
             {
                 using (UniversalLoginForm form = new UniversalLoginForm())
@@ -6691,13 +6691,16 @@ namespace UniversalScanner
             mainDesignApplied = true;
             SuspendLayout();
 
-            Color navy = Color.FromArgb(28, 61, 108);
-            Color toolbarBack = Color.FromArgb(244, 247, 251);
-            Color borderBlue = Color.FromArgb(0, 91, 140);
-            Color scanBlue = Color.FromArgb(0, 116, 181);
-            Color stopRed = Color.FromArgb(198, 15, 48);
+            AppVisualPalette palette = AppVisualTheme.Current;
+            Color navy = palette.Header;
+            Color toolbarBack = palette.WindowBackground;
+            Color borderBlue = palette.Border;
+            Color scanBlue = palette.Accent;
+            Color stopRed = palette.Danger;
 
             BackColor = toolbarBack;
+            ForeColor = palette.TextPrimary;
+            Font = AppVisualTheme.BodyFont;
 
             headerPanel = new Panel
             {
@@ -6718,8 +6721,8 @@ namespace UniversalScanner
             };
             toolbarPanel.Paint += (sender, e) =>
             {
-                using (Pen pen = new Pen(borderBlue, 2))
-                    e.Graphics.DrawLine(pen, 0, toolbarPanel.Height - 2, toolbarPanel.Width, toolbarPanel.Height - 2);
+                using (Pen pen = new Pen(borderBlue))
+                    e.Graphics.DrawLine(pen, 0, toolbarPanel.Height - 1, toolbarPanel.Width, toolbarPanel.Height - 1);
             };
 
             headerIconBox = new PictureBox
@@ -6738,7 +6741,7 @@ namespace UniversalScanner
                 AutoSize = true,
                 BackColor = Color.Transparent,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
+                Font = AppVisualTheme.DisplayFont,
                 Left = 72,
                 Top = 11,
                 Text = "Universal Scanner"
@@ -6748,8 +6751,8 @@ namespace UniversalScanner
             {
                 AutoSize = true,
                 BackColor = Color.Transparent,
-                ForeColor = Color.FromArgb(211, 224, 239),
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
+                ForeColor = palette.HeaderSecondaryText,
+                Font = AppVisualTheme.CaptionFont,
                 Left = 74,
                 Top = 38,
                 Text = "Discover - Analyze - Identify"
@@ -6760,7 +6763,7 @@ namespace UniversalScanner
                 AutoSize = false,
                 BackColor = Color.Transparent,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                Font = AppVisualTheme.ClockFont,
                 TextAlign = ContentAlignment.MiddleRight
             };
 
@@ -6768,8 +6771,8 @@ namespace UniversalScanner
             {
                 AutoSize = false,
                 BackColor = Color.Transparent,
-                ForeColor = Color.FromArgb(211, 224, 239),
-                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                ForeColor = palette.HeaderSecondaryText,
+                Font = AppVisualTheme.BodyFont,
                 TextAlign = ContentAlignment.MiddleRight
             };
 
@@ -6789,10 +6792,9 @@ namespace UniversalScanner
             UpdateHeaderClock();
             headerClockTimer.Start();
 
-            toolsToolStripMenuItem.Text = "\u2699  Tools";
-            toolsToolStripMenuItem.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
-            toolsToolStripMenuItem.Text = "⚙ Tools";
-            toolsToolStripMenuItem.Text = "\u2699  Tools";
+            toolsToolStripMenuItem.Text = "Tools";
+            toolsToolStripMenuItem.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Tools, Color.White);
+            loginToolStripMenuItem.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Lock, Color.White);
             toolbarPanel.Controls.Add(scanButton);
             toolbarPanel.Controls.Add(newVersion);
             toolbarPanel.Controls.Add(scanSubnetButton);
@@ -6805,13 +6807,27 @@ namespace UniversalScanner
             StyleToolbarButton(scanButton, scanBlue, Color.White, scanBlue, true);
             StyleToolbarButton(scanSubnetButton, scanBlue, Color.White, scanBlue, true);
             StyleToolbarButton(stopSubnetButton, stopRed, Color.White, stopRed, true);
-            StyleToolbarButton(aboutButton, Color.FromArgb(248, 250, 252), Color.FromArgb(29, 39, 53), Color.FromArgb(132, 142, 154), false);
+            StyleToolbarButton(aboutButton, palette.Surface, palette.TextPrimary, palette.BorderStrong, false);
+            scanButton.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Scan, Color.White);
+            scanSubnetButton.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Network, Color.White);
+            stopSubnetButton.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Stop, Color.White);
+            aboutButton.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Info, palette.TextSecondary);
             StyleMainGrid();
             StyleStatusStrip();
 
-            subnetTextBox.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+            subnetTextBox.Font = AppVisualTheme.BodyFont;
+            subnetTextBox.BackColor = palette.InputBackground;
+            subnetTextBox.ForeColor = palette.TextPrimary;
             subnetTextBox.BorderStyle = BorderStyle.FixedSingle;
             scanProgressBar.Style = ProgressBarStyle.Continuous;
+            scanProgressBar.BackColor = palette.SurfaceMuted;
+            scanProgressBar.ForeColor = palette.Accent;
+            newVersion.Font = AppVisualTheme.CaptionFont;
+            newVersion.LinkColor = palette.Accent;
+            newVersion.ActiveLinkColor = palette.AccentPressed;
+            newVersion.VisitedLinkColor = palette.Accent;
+            AppVisualTheme.ApplyWindowChrome(this);
+            AppVisualTheme.ApplyProgressBarColors(scanProgressBar);
 
             dataGridView1.BorderStyle = BorderStyle.None;
             dataGridView1.Anchor = AnchorStyles.None;
@@ -6895,8 +6911,9 @@ namespace UniversalScanner
 
         private void StyleMainMenu(Color headerBackColor)
         {
+            AppVisualPalette palette = AppVisualTheme.Current;
             if (modernMenuRenderer == null)
-                modernMenuRenderer = new ModernMenuRenderer();
+                modernMenuRenderer = new ModernMenuRenderer(palette);
 
             menuStrip1.BackColor = headerBackColor;
             menuStrip1.ForeColor = Color.White;
@@ -6911,11 +6928,11 @@ namespace UniversalScanner
                 item.BackColor = headerBackColor;
                 if (item is ToolStripMenuItem menuItem)
                 {
-                    menuItem.DropDown.BackColor = Color.White;
+                    menuItem.DropDown.BackColor = palette.Surface;
                     foreach (ToolStripItem dropDownItem in menuItem.DropDownItems)
                     {
-                        dropDownItem.ForeColor = Color.FromArgb(29, 39, 53);
-                        dropDownItem.BackColor = Color.White;
+                        dropDownItem.ForeColor = palette.TextPrimary;
+                        dropDownItem.BackColor = palette.Surface;
                     }
 
                     ApplyMenuTheme(menuItem.DropDown);
@@ -6930,9 +6947,10 @@ namespace UniversalScanner
             if (item == null)
                 return;
 
-            item.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
-            item.Padding = new Padding(10, 5, 10, 5);
+            item.Font = AppVisualTheme.MenuHeaderFont;
+            item.Padding = new Padding(10, 6, 10, 6);
             item.Margin = new Padding(0, 0, 8, 0);
+            item.ImageScaling = ToolStripItemImageScaling.None;
         }
 
         private void ApplyMenuTheme(ToolStripDropDown menu)
@@ -6940,12 +6958,13 @@ namespace UniversalScanner
             if (menu == null)
                 return;
 
+            AppVisualPalette palette = AppVisualTheme.Current;
             if (modernMenuRenderer == null)
-                modernMenuRenderer = new ModernMenuRenderer();
+                modernMenuRenderer = new ModernMenuRenderer(palette);
 
             menu.Renderer = modernMenuRenderer;
-            menu.BackColor = Color.FromArgb(239, 247, 253);
-            menu.ForeColor = Color.FromArgb(29, 39, 53);
+            menu.BackColor = palette.Surface;
+            menu.ForeColor = palette.TextPrimary;
             menu.Padding = new Padding(6);
             if (menu is ToolStripDropDownMenu dropDownMenu)
             {
@@ -6955,9 +6974,9 @@ namespace UniversalScanner
 
             foreach (ToolStripItem item in menu.Items)
             {
-                item.BackColor = Color.FromArgb(239, 247, 253);
-                item.ForeColor = Color.FromArgb(29, 39, 53);
-                item.Font = new Font("Segoe UI", 10F, FontStyle.Regular);
+                item.BackColor = palette.Surface;
+                item.ForeColor = palette.TextPrimary;
+                item.Font = AppVisualTheme.MenuFont;
                 item.Padding = new Padding(8, 6, 8, 6);
 
                 if (item is ToolStripMenuItem childMenu)
@@ -6967,35 +6986,47 @@ namespace UniversalScanner
 
         private void StyleToolbarButton(Button button, Color backColor, Color foreColor, Color borderColor, bool filled)
         {
+            AppVisualPalette palette = AppVisualTheme.Current;
             button.UseVisualStyleBackColor = false;
             button.BackColor = backColor;
             button.ForeColor = foreColor;
             button.FlatStyle = FlatStyle.Flat;
             button.FlatAppearance.BorderColor = borderColor;
-            button.FlatAppearance.BorderSize = filled ? 0 : 1;
-            button.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            button.FlatAppearance.BorderSize = 1;
+            button.FlatAppearance.MouseOverBackColor = filled ? palette.AccentHover : palette.SurfaceHover;
+            button.FlatAppearance.MouseDownBackColor = filled ? palette.AccentPressed : palette.SurfacePressed;
+            button.Font = AppVisualTheme.ButtonFont;
             button.Cursor = Cursors.Hand;
+            button.ImageAlign = ContentAlignment.MiddleLeft;
+            button.TextImageRelation = TextImageRelation.ImageBeforeText;
+            button.Padding = new Padding(5, 0, 5, 0);
         }
 
         private void StyleMainGrid()
         {
+            AppVisualPalette palette = AppVisualTheme.Current;
             dataGridView1.EnableHeadersVisualStyles = false;
-            dataGridView1.BackgroundColor = Color.White;
-            dataGridView1.GridColor = Color.FromArgb(219, 231, 242);
+            dataGridView1.BackgroundColor = palette.Surface;
+            dataGridView1.GridColor = palette.GridLine;
             dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
             dataGridView1.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
-            dataGridView1.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(232, 242, 252);
-            dataGridView1.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(28, 61, 108);
-            dataGridView1.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-            dataGridView1.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 242, 252);
-            dataGridView1.ColumnHeadersDefaultCellStyle.SelectionForeColor = Color.FromArgb(28, 61, 108);
-            dataGridView1.DefaultCellStyle.BackColor = Color.White;
-            dataGridView1.DefaultCellStyle.SelectionBackColor = Color.FromArgb(16, 123, 192);
-            dataGridView1.DefaultCellStyle.SelectionForeColor = Color.White;
-            dataGridView1.DefaultCellStyle.Font = new Font("Segoe UI", 8.5F, FontStyle.Regular);
-            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(247, 251, 255);
-            dataGridView1.RowTemplate.Height = 25;
-            dataGridView1.ColumnHeadersHeight = 28;
+            dataGridView1.ColumnHeadersDefaultCellStyle.BackColor = palette.GridHeader;
+            dataGridView1.ColumnHeadersDefaultCellStyle.ForeColor = palette.TextPrimary;
+            dataGridView1.ColumnHeadersDefaultCellStyle.Font = AppVisualTheme.GridHeaderFont;
+            dataGridView1.ColumnHeadersDefaultCellStyle.SelectionBackColor = palette.GridHeader;
+            dataGridView1.ColumnHeadersDefaultCellStyle.SelectionForeColor = palette.TextPrimary;
+            dataGridView1.ColumnHeadersDefaultCellStyle.Padding = new Padding(6, 0, 6, 0);
+            dataGridView1.DefaultCellStyle.BackColor = palette.Surface;
+            dataGridView1.DefaultCellStyle.ForeColor = palette.TextPrimary;
+            dataGridView1.DefaultCellStyle.SelectionBackColor = palette.Selection;
+            dataGridView1.DefaultCellStyle.SelectionForeColor = palette.SelectionText;
+            dataGridView1.DefaultCellStyle.Font = AppVisualTheme.GridFont;
+            dataGridView1.DefaultCellStyle.Padding = new Padding(5, 0, 5, 0);
+            dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = palette.SurfaceAlternate;
+            dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = palette.TextPrimary;
+            dataGridView1.RowTemplate.Height = 30;
+            dataGridView1.ColumnHeadersHeight = 34;
+            dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
         }
 
         private void StyleStatusStrip()
@@ -7003,29 +7034,548 @@ namespace UniversalScanner
             if (statusStrip == null || statusLabel == null || deviceCountLabel == null || selectedCountLabel == null)
                 return;
 
-            statusStrip.BackColor = Color.FromArgb(245, 247, 250);
-            statusLabel.ForeColor = Color.FromArgb(29, 39, 53);
-            statusLabel.Font = new Font("Segoe UI", 8.5F, FontStyle.Regular);
-            deviceCountLabel.ForeColor = Color.FromArgb(28, 61, 108);
-            deviceCountLabel.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-            selectedCountLabel.ForeColor = Color.FromArgb(28, 61, 108);
-            selectedCountLabel.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            AppVisualPalette palette = AppVisualTheme.Current;
+            statusStrip.BackColor = palette.SurfaceMuted;
+            statusStrip.ForeColor = palette.TextSecondary;
+            statusStrip.SizingGrip = true;
+            statusLabel.ForeColor = palette.TextSecondary;
+            statusLabel.Font = AppVisualTheme.CaptionFont;
+            deviceCountLabel.ForeColor = palette.AccentText;
+            deviceCountLabel.Font = AppVisualTheme.CaptionStrongFont;
+            selectedCountLabel.ForeColor = palette.AccentText;
+            selectedCountLabel.Font = AppVisualTheme.CaptionStrongFont;
         }
     }
 
 
+    public enum AppVisualIcon
+    {
+        Tools,
+        Lock,
+        Scan,
+        Network,
+        Stop,
+        Info
+    }
+
+    public sealed class AppVisualPalette
+    {
+        public bool IsDark { get; private set; }
+        public Color WindowBackground { get; private set; }
+        public Color Surface { get; private set; }
+        public Color SurfaceMuted { get; private set; }
+        public Color SurfaceAlternate { get; private set; }
+        public Color SurfaceHover { get; private set; }
+        public Color SurfacePressed { get; private set; }
+        public Color InputBackground { get; private set; }
+        public Color Header { get; private set; }
+        public Color HeaderSecondaryText { get; private set; }
+        public Color Accent { get; private set; }
+        public Color AccentHover { get; private set; }
+        public Color AccentPressed { get; private set; }
+        public Color AccentText { get; private set; }
+        public Color Danger { get; private set; }
+        public Color TextPrimary { get; private set; }
+        public Color TextSecondary { get; private set; }
+        public Color Border { get; private set; }
+        public Color BorderStrong { get; private set; }
+        public Color GridLine { get; private set; }
+        public Color GridHeader { get; private set; }
+        public Color Selection { get; private set; }
+        public Color SelectionText { get; private set; }
+
+        public static AppVisualPalette Create(bool dark)
+        {
+            if (dark)
+            {
+                return new AppVisualPalette
+                {
+                    IsDark = true,
+                    WindowBackground = Color.FromArgb(23, 26, 31),
+                    Surface = Color.FromArgb(32, 36, 43),
+                    SurfaceMuted = Color.FromArgb(41, 46, 54),
+                    SurfaceAlternate = Color.FromArgb(36, 41, 49),
+                    SurfaceHover = Color.FromArgb(48, 55, 65),
+                    SurfacePressed = Color.FromArgb(57, 65, 76),
+                    InputBackground = Color.FromArgb(27, 31, 37),
+                    Header = Color.FromArgb(23, 45, 75),
+                    HeaderSecondaryText = Color.FromArgb(188, 204, 224),
+                    Accent = Color.FromArgb(0, 120, 212),
+                    AccentHover = Color.FromArgb(16, 134, 225),
+                    AccentPressed = Color.FromArgb(0, 99, 177),
+                    AccentText = Color.FromArgb(96, 205, 255),
+                    Danger = Color.FromArgb(196, 43, 28),
+                    TextPrimary = Color.FromArgb(243, 246, 250),
+                    TextSecondary = Color.FromArgb(174, 183, 194),
+                    Border = Color.FromArgb(58, 66, 77),
+                    BorderStrong = Color.FromArgb(85, 95, 108),
+                    GridLine = Color.FromArgb(53, 60, 70),
+                    GridHeader = Color.FromArgb(43, 49, 58),
+                    Selection = Color.FromArgb(23, 76, 113),
+                    SelectionText = Color.White
+                };
+            }
+
+            return new AppVisualPalette
+            {
+                IsDark = false,
+                WindowBackground = Color.FromArgb(243, 246, 250),
+                Surface = Color.White,
+                SurfaceMuted = Color.FromArgb(248, 250, 252),
+                SurfaceAlternate = Color.FromArgb(247, 249, 252),
+                SurfaceHover = Color.FromArgb(237, 243, 249),
+                SurfacePressed = Color.FromArgb(224, 233, 243),
+                InputBackground = Color.White,
+                Header = Color.FromArgb(28, 61, 108),
+                HeaderSecondaryText = Color.FromArgb(211, 224, 239),
+                Accent = Color.FromArgb(15, 108, 189),
+                AccentHover = Color.FromArgb(0, 95, 184),
+                AccentPressed = Color.FromArgb(0, 78, 146),
+                AccentText = Color.FromArgb(15, 91, 158),
+                Danger = Color.FromArgb(196, 43, 28),
+                TextPrimary = Color.FromArgb(24, 33, 47),
+                TextSecondary = Color.FromArgb(86, 99, 116),
+                Border = Color.FromArgb(215, 222, 232),
+                BorderStrong = Color.FromArgb(155, 167, 181),
+                GridLine = Color.FromArgb(224, 229, 236),
+                GridHeader = Color.FromArgb(237, 242, 248),
+                Selection = Color.FromArgb(15, 108, 189),
+                SelectionText = Color.White
+            };
+        }
+    }
+
+    public static class AppVisualTheme
+    {
+        private const int DwmUseImmersiveDarkModeBefore20H1 = 19;
+        private const int DwmUseImmersiveDarkMode = 20;
+        private const int ProgressSetBarColor = 0x0409;
+        private const int ProgressSetBackgroundColor = 0x2001;
+        private static readonly AppVisualPalette current = AppVisualPalette.Create(IsWindowsDarkTheme());
+
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr windowHandle, int attribute, ref int value, int size);
+
+        [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+        private static extern int SetWindowTheme(IntPtr windowHandle, string subApplicationName, string subIdList);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr windowHandle, int message, IntPtr wParam, IntPtr lParam);
+
+        public static AppVisualPalette Current => current;
+        public static Font BodyFont => new Font("Segoe UI", 9F, FontStyle.Regular);
+        public static Font CaptionFont => new Font("Segoe UI", 8.5F, FontStyle.Regular);
+        public static Font CaptionStrongFont => new Font("Segoe UI Semibold", 8.5F, FontStyle.Regular);
+        public static Font ButtonFont => new Font("Segoe UI Semibold", 9F, FontStyle.Regular);
+        public static Font MenuFont => new Font("Segoe UI", 9.5F, FontStyle.Regular);
+        public static Font MenuHeaderFont => new Font("Segoe UI Semibold", 11F, FontStyle.Regular);
+        public static Font GridFont => new Font("Segoe UI", 9F, FontStyle.Regular);
+        public static Font GridHeaderFont => new Font("Segoe UI Semibold", 9F, FontStyle.Regular);
+        public static Font DisplayFont => new Font("Segoe UI Semibold", 16F, FontStyle.Regular);
+        public static Font ClockFont => new Font("Segoe UI Semibold", 13F, FontStyle.Regular);
+
+        private static bool IsWindowsDarkTheme()
+        {
+            string overrideTheme = Environment.GetEnvironmentVariable("UNIVERSALSCANNER_THEME");
+            if (string.Equals(overrideTheme, "dark", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (string.Equals(overrideTheme, "light", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            try
+            {
+                using (Microsoft.Win32.RegistryKey key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
+                {
+                    object value = key != null ? key.GetValue("AppsUseLightTheme") : null;
+                    return value is int && (int)value == 0;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static Bitmap CreateIcon(AppVisualIcon icon, Color color)
+        {
+            Bitmap bitmap = new Bitmap(16, 16);
+            using (Graphics graphics = Graphics.FromImage(bitmap))
+            using (Pen pen = new Pen(color, 1.6F))
+            using (SolidBrush brush = new SolidBrush(color))
+            {
+                graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                pen.StartCap = System.Drawing.Drawing2D.LineCap.Round;
+                pen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
+
+                if (icon == AppVisualIcon.Scan)
+                {
+                    graphics.DrawEllipse(pen, 2.5F, 2.5F, 7.5F, 7.5F);
+                    graphics.DrawLine(pen, 9F, 9F, 14F, 14F);
+                }
+                else if (icon == AppVisualIcon.Network)
+                {
+                    graphics.DrawEllipse(pen, 6F, 1.5F, 4F, 4F);
+                    graphics.DrawEllipse(pen, 1.5F, 10F, 4F, 4F);
+                    graphics.DrawEllipse(pen, 10.5F, 10F, 4F, 4F);
+                    graphics.DrawLine(pen, 7F, 5F, 4F, 10F);
+                    graphics.DrawLine(pen, 9F, 5F, 12F, 10F);
+                    graphics.DrawLine(pen, 5.5F, 12F, 10.5F, 12F);
+                }
+                else if (icon == AppVisualIcon.Stop)
+                {
+                    graphics.FillRectangle(brush, 3.5F, 3.5F, 9F, 9F);
+                }
+                else if (icon == AppVisualIcon.Info)
+                {
+                    graphics.DrawEllipse(pen, 1.5F, 1.5F, 13F, 13F);
+                    graphics.FillEllipse(brush, 7F, 4F, 2F, 2F);
+                    graphics.DrawLine(pen, 8F, 7.5F, 8F, 12F);
+                }
+                else if (icon == AppVisualIcon.Lock)
+                {
+                    graphics.DrawRectangle(pen, 3F, 7F, 10F, 7F);
+                    graphics.DrawArc(pen, 5F, 1.5F, 6F, 9F, 180F, 180F);
+                }
+                else
+                {
+                    graphics.DrawEllipse(pen, 4.5F, 4.5F, 7F, 7F);
+                    for (int i = 0; i < 8; i++)
+                    {
+                        double angle = i * Math.PI / 4D;
+                        float x1 = 8F + (float)Math.Cos(angle) * 5F;
+                        float y1 = 8F + (float)Math.Sin(angle) * 5F;
+                        float x2 = 8F + (float)Math.Cos(angle) * 7F;
+                        float y2 = 8F + (float)Math.Sin(angle) * 7F;
+                        graphics.DrawLine(pen, x1, y1, x2, y2);
+                    }
+                }
+            }
+
+            return bitmap;
+        }
+
+        public static void Apply(Form form)
+        {
+            if (form == null)
+                return;
+
+            AppVisualPalette palette = Current;
+            form.Font = BodyFont;
+            form.BackColor = palette.WindowBackground;
+            form.ForeColor = palette.TextPrimary;
+            ApplyWindowChrome(form);
+            ApplyControlTree(form, form, palette);
+        }
+
+        public static void ApplyWindowChrome(Form form)
+        {
+            if (form == null || !Current.IsDark)
+                return;
+
+            try
+            {
+                int enabled = 1;
+                IntPtr handle = form.Handle;
+                if (DwmSetWindowAttribute(handle, DwmUseImmersiveDarkMode, ref enabled, sizeof(int)) != 0)
+                    DwmSetWindowAttribute(handle, DwmUseImmersiveDarkModeBefore20H1, ref enabled, sizeof(int));
+            }
+            catch
+            {
+            }
+        }
+
+        public static void ApplyProgressBarColors(ProgressBar progressBar)
+        {
+            if (progressBar == null)
+                return;
+
+            try
+            {
+                IntPtr handle = progressBar.Handle;
+                SetWindowTheme(handle, string.Empty, string.Empty);
+                SendMessage(handle, ProgressSetBackgroundColor, IntPtr.Zero, (IntPtr)ColorTranslator.ToWin32(Current.SurfaceMuted));
+                SendMessage(handle, ProgressSetBarColor, IntPtr.Zero, (IntPtr)ColorTranslator.ToWin32(Current.Accent));
+            }
+            catch
+            {
+            }
+        }
+
+        private static void ApplyControlTree(Control parent, Form form, AppVisualPalette palette)
+        {
+            foreach (Control control in parent.Controls)
+            {
+                if (control is Button button)
+                    StyleDialogButton(button, form, palette);
+                else if (control is DataGridView grid)
+                    StyleGrid(grid, palette);
+                else if (control is TextBoxBase textBox)
+                    StyleInput(textBox, palette);
+                else if (control is ComboBox comboBox)
+                    StyleComboBox(comboBox, palette);
+                else if (control is NumericUpDown numericUpDown)
+                    StyleInput(numericUpDown, palette);
+                else if (control is DateTimePicker dateTimePicker)
+                    StyleInput(dateTimePicker, palette);
+                else if (control is CheckedListBox checkedListBox)
+                    StyleListControl(checkedListBox, palette);
+                else if (control is ListBox listBox)
+                    StyleListControl(listBox, palette);
+                else if (control is ListView listView)
+                    StyleListView(listView, palette);
+                else if (control is TreeView treeView)
+                    StyleTreeView(treeView, palette);
+                else if (control is LinkLabel linkLabel)
+                    StyleLink(linkLabel, palette);
+                else if (control is Label label)
+                    StyleLabel(label, palette);
+                else if (control is GroupBox groupBox)
+                    StyleGroupBox(groupBox, palette);
+                else if (control is TabControl tabControl)
+                    StyleTabControl(tabControl, palette);
+                else if (control is TabPage tabPage)
+                    StyleTabPage(tabPage, palette);
+                else if (control is CheckBox checkBox)
+                    StyleToggle(checkBox, palette);
+                else if (control is RadioButton radioButton)
+                    StyleToggle(radioButton, palette);
+                else if (control is ProgressBar progressBar)
+                    StyleProgressBar(progressBar, palette);
+                else if (control is MenuStrip menuStrip)
+                    StyleToolStrip(menuStrip, palette);
+                else if (control is StatusStrip statusStrip)
+                    StyleToolStrip(statusStrip, palette);
+                else if (control is ToolStrip toolStrip)
+                    StyleToolStrip(toolStrip, palette);
+                else if (control is Panel panel)
+                    StylePanel(panel, palette);
+
+                if (control.ContextMenuStrip != null)
+                    StyleContextMenu(control.ContextMenuStrip, palette);
+
+                if (control.HasChildren)
+                    ApplyControlTree(control, form, palette);
+            }
+
+            if (parent.ContextMenuStrip != null)
+                StyleContextMenu(parent.ContextMenuStrip, palette);
+        }
+
+        private static void StyleDialogButton(Button button, Form form, AppVisualPalette palette)
+        {
+            bool isPrimary = ReferenceEquals(form.AcceptButton, button);
+            bool isDanger = ContainsAny(button.Text, "delete", "remove", "stop", "disable");
+            Color background = isDanger ? palette.Danger : isPrimary ? palette.Accent : palette.Surface;
+            Color foreground = isDanger || isPrimary ? Color.White : palette.TextPrimary;
+            Color border = isDanger ? palette.Danger : isPrimary ? palette.Accent : palette.BorderStrong;
+
+            button.UseVisualStyleBackColor = false;
+            button.FlatStyle = FlatStyle.Flat;
+            button.BackColor = background;
+            button.ForeColor = foreground;
+            button.Font = ButtonFont;
+            button.FlatAppearance.BorderColor = border;
+            button.FlatAppearance.BorderSize = 1;
+            button.FlatAppearance.MouseOverBackColor = isDanger ? Color.FromArgb(214, 58, 43) : isPrimary ? palette.AccentHover : palette.SurfaceHover;
+            button.FlatAppearance.MouseDownBackColor = isDanger ? Color.FromArgb(164, 35, 23) : isPrimary ? palette.AccentPressed : palette.SurfacePressed;
+            button.FlatAppearance.CheckedBackColor = palette.SurfacePressed;
+            button.Cursor = button.Enabled ? Cursors.Hand : Cursors.Default;
+        }
+
+        private static void StyleGrid(DataGridView grid, AppVisualPalette palette)
+        {
+            grid.EnableHeadersVisualStyles = false;
+            grid.BackgroundColor = palette.Surface;
+            grid.BorderStyle = BorderStyle.FixedSingle;
+            grid.GridColor = palette.GridLine;
+            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            grid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
+            grid.ColumnHeadersDefaultCellStyle.BackColor = palette.GridHeader;
+            grid.ColumnHeadersDefaultCellStyle.ForeColor = palette.TextPrimary;
+            grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = palette.GridHeader;
+            grid.ColumnHeadersDefaultCellStyle.SelectionForeColor = palette.TextPrimary;
+            grid.ColumnHeadersDefaultCellStyle.Font = GridHeaderFont;
+            grid.ColumnHeadersDefaultCellStyle.Padding = new Padding(5, 0, 5, 0);
+            grid.DefaultCellStyle.BackColor = palette.Surface;
+            grid.DefaultCellStyle.ForeColor = palette.TextPrimary;
+            grid.DefaultCellStyle.SelectionBackColor = palette.Selection;
+            grid.DefaultCellStyle.SelectionForeColor = palette.SelectionText;
+            grid.DefaultCellStyle.Font = GridFont;
+            grid.DefaultCellStyle.Padding = new Padding(4, 0, 4, 0);
+            grid.AlternatingRowsDefaultCellStyle.BackColor = palette.SurfaceAlternate;
+            grid.AlternatingRowsDefaultCellStyle.ForeColor = palette.TextPrimary;
+            if (grid.RowTemplate.Height < 28)
+                grid.RowTemplate.Height = 28;
+            if (grid.ColumnHeadersHeight < 32)
+                grid.ColumnHeadersHeight = 32;
+        }
+
+        private static void StyleInput(Control control, AppVisualPalette palette)
+        {
+            control.BackColor = palette.InputBackground;
+            control.ForeColor = palette.TextPrimary;
+            control.Font = BodyFont;
+        }
+
+        private static void StyleComboBox(ComboBox comboBox, AppVisualPalette palette)
+        {
+            comboBox.BackColor = palette.InputBackground;
+            comboBox.ForeColor = palette.TextPrimary;
+            comboBox.Font = BodyFont;
+            if (comboBox.FlatStyle != FlatStyle.System)
+                comboBox.FlatStyle = FlatStyle.Flat;
+        }
+
+        private static void StyleListControl(ListControl listControl, AppVisualPalette palette)
+        {
+            listControl.BackColor = palette.InputBackground;
+            listControl.ForeColor = palette.TextPrimary;
+            listControl.Font = BodyFont;
+        }
+
+        private static void StyleListView(ListView listView, AppVisualPalette palette)
+        {
+            listView.BackColor = palette.InputBackground;
+            listView.ForeColor = palette.TextPrimary;
+            listView.Font = BodyFont;
+            listView.BorderStyle = BorderStyle.FixedSingle;
+        }
+
+        private static void StyleTreeView(TreeView treeView, AppVisualPalette palette)
+        {
+            treeView.BackColor = palette.InputBackground;
+            treeView.ForeColor = palette.TextPrimary;
+            treeView.Font = BodyFont;
+            treeView.BorderStyle = BorderStyle.FixedSingle;
+        }
+
+        private static void StyleLink(LinkLabel linkLabel, AppVisualPalette palette)
+        {
+            linkLabel.Font = BodyFont;
+            linkLabel.LinkColor = palette.AccentText;
+            linkLabel.ActiveLinkColor = palette.AccentPressed;
+            linkLabel.VisitedLinkColor = palette.AccentText;
+            linkLabel.BackColor = Color.Transparent;
+        }
+
+        private static void StyleLabel(Label label, AppVisualPalette palette)
+        {
+            label.BackColor = Color.Transparent;
+            if (label.Parent != null && label.Parent.BackColor == palette.Header)
+            {
+                label.ForeColor = label.ForeColor == Color.White ? Color.White : palette.HeaderSecondaryText;
+                return;
+            }
+            if (!IsSemanticColor(label.ForeColor))
+                label.ForeColor = palette.TextPrimary;
+        }
+
+        private static void StyleGroupBox(GroupBox groupBox, AppVisualPalette palette)
+        {
+            groupBox.BackColor = palette.Surface;
+            groupBox.ForeColor = palette.TextPrimary;
+            groupBox.Font = ButtonFont;
+        }
+
+        private static void StyleTabControl(TabControl tabControl, AppVisualPalette palette)
+        {
+            tabControl.Font = BodyFont;
+            tabControl.BackColor = palette.WindowBackground;
+            tabControl.ForeColor = palette.TextPrimary;
+        }
+
+        private static void StyleTabPage(TabPage tabPage, AppVisualPalette palette)
+        {
+            tabPage.UseVisualStyleBackColor = false;
+            tabPage.BackColor = palette.Surface;
+            tabPage.ForeColor = palette.TextPrimary;
+        }
+
+        private static void StyleToggle(Control control, AppVisualPalette palette)
+        {
+            control.BackColor = Color.Transparent;
+            control.ForeColor = palette.TextPrimary;
+            control.Font = BodyFont;
+        }
+
+        private static void StyleProgressBar(ProgressBar progressBar, AppVisualPalette palette)
+        {
+            progressBar.BackColor = palette.SurfaceMuted;
+            progressBar.ForeColor = palette.Accent;
+            ApplyProgressBarColors(progressBar);
+        }
+
+        private static void StylePanel(Panel panel, AppVisualPalette palette)
+        {
+            if (panel.BackColor == SystemColors.Control || panel.BackColor == Color.Transparent)
+                panel.BackColor = palette.Surface;
+            else if (panel.BackColor.B > panel.BackColor.R + 20 && panel.BackColor.B > panel.BackColor.G)
+                panel.BackColor = palette.Header;
+        }
+
+        private static void StyleToolStrip(ToolStrip toolStrip, AppVisualPalette palette)
+        {
+            toolStrip.Font = BodyFont;
+            toolStrip.BackColor = toolStrip is MenuStrip ? palette.Header : palette.SurfaceMuted;
+            toolStrip.ForeColor = toolStrip is MenuStrip ? Color.White : palette.TextPrimary;
+            toolStrip.Renderer = new ModernMenuRenderer(palette);
+            StyleToolStripItems(toolStrip.Items, palette, toolStrip is MenuStrip);
+        }
+
+        private static void StyleContextMenu(ContextMenuStrip menu, AppVisualPalette palette)
+        {
+            StyleDropDown(menu, palette);
+        }
+
+        private static void StyleDropDown(ToolStripDropDown menu, AppVisualPalette palette)
+        {
+            menu.BackColor = palette.Surface;
+            menu.ForeColor = palette.TextPrimary;
+            menu.Font = MenuFont;
+            menu.Renderer = new ModernMenuRenderer(palette);
+            menu.Padding = new Padding(6);
+            StyleToolStripItems(menu.Items, palette, false);
+        }
+
+        private static void StyleToolStripItems(ToolStripItemCollection items, AppVisualPalette palette, bool header)
+        {
+            foreach (ToolStripItem item in items)
+            {
+                item.BackColor = header ? palette.Header : palette.Surface;
+                item.ForeColor = header ? Color.White : palette.TextPrimary;
+                item.Font = header ? MenuHeaderFont : MenuFont;
+                if (item is ToolStripMenuItem menuItem)
+                    StyleDropDown(menuItem.DropDown, palette);
+            }
+        }
+
+        private static bool ContainsAny(string value, params string[] terms)
+        {
+            string normalized = (value ?? string.Empty).Replace("&", string.Empty).Trim();
+            foreach (string term in terms)
+            {
+                if (normalized.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool IsSemanticColor(Color color)
+        {
+            return color.R > color.G + 45 && color.R > color.B + 35
+                || color.G > color.R + 35 && color.G > color.B + 20;
+        }
+    }
+
     public class ModernMenuRenderer : ToolStripProfessionalRenderer
     {
-        private readonly Color navy = Color.FromArgb(28, 61, 108);
-        private readonly Color dropDownBack = Color.FromArgb(239, 247, 253);
-        private readonly Color hoverBack = Color.FromArgb(0, 116, 181);
-        private readonly Color hoverAccent = Color.FromArgb(0, 116, 181);
-        private readonly Color menuBorder = Color.FromArgb(174, 195, 216);
-        private readonly Color textColor = Color.FromArgb(29, 39, 53);
+        private readonly AppVisualPalette palette;
 
-        public ModernMenuRenderer()
-            : base(new ModernMenuColorTable())
+        public ModernMenuRenderer(AppVisualPalette palette)
+            : base(new ModernMenuColorTable(palette))
         {
+            this.palette = palette;
             RoundedEdges = false;
         }
 
@@ -7033,12 +7583,12 @@ namespace UniversalScanner
         {
             if (e.ToolStrip is MenuStrip)
             {
-                using (SolidBrush brush = new SolidBrush(navy))
+                using (SolidBrush brush = new SolidBrush(palette.Header))
                     e.Graphics.FillRectangle(brush, e.AffectedBounds);
                 return;
             }
 
-            using (SolidBrush brush = new SolidBrush(dropDownBack))
+            using (SolidBrush brush = new SolidBrush(palette.Surface))
                 e.Graphics.FillRectangle(brush, e.AffectedBounds);
         }
 
@@ -7047,7 +7597,7 @@ namespace UniversalScanner
             if (e.ToolStrip is ToolStripDropDown)
             {
                 Rectangle bounds = new Rectangle(0, 0, e.ToolStrip.Width - 1, e.ToolStrip.Height - 1);
-                using (Pen pen = new Pen(menuBorder))
+                using (Pen pen = new Pen(palette.Border))
                     e.Graphics.DrawRectangle(pen, bounds);
             }
         }
@@ -7060,24 +7610,24 @@ namespace UniversalScanner
             {
                 if (e.Item.Selected || (e.Item is ToolStripMenuItem menuItem && menuItem.DropDown.Visible))
                 {
-                    using (SolidBrush brush = new SolidBrush(Color.FromArgb(0, 116, 181)))
+                    using (SolidBrush brush = new SolidBrush(palette.Accent))
                         e.Graphics.FillRectangle(brush, bounds);
                 }
                 else
                 {
-                    using (SolidBrush brush = new SolidBrush(navy))
+                    using (SolidBrush brush = new SolidBrush(palette.Header))
                         e.Graphics.FillRectangle(brush, bounds);
                 }
 
                 return;
             }
 
-            using (SolidBrush brush = new SolidBrush(e.Item.Selected ? hoverBack : dropDownBack))
+            using (SolidBrush brush = new SolidBrush(e.Item.Selected ? palette.Accent : palette.Surface))
                 e.Graphics.FillRectangle(brush, bounds);
 
             if (e.Item.Selected)
             {
-                using (SolidBrush accentBrush = new SolidBrush(navy))
+                using (SolidBrush accentBrush = new SolidBrush(palette.AccentText))
                     e.Graphics.FillRectangle(accentBrush, new Rectangle(0, 0, 4, bounds.Height));
             }
         }
@@ -7087,7 +7637,7 @@ namespace UniversalScanner
             if (e.ToolStrip is MenuStrip || e.Item.Selected)
                 e.TextColor = Color.White;
             else
-                e.TextColor = textColor;
+                e.TextColor = palette.TextPrimary;
 
             base.OnRenderItemText(e);
         }
@@ -7095,40 +7645,43 @@ namespace UniversalScanner
         protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
         {
             int y = e.Item.Height / 2;
-            using (Pen pen = new Pen(Color.FromArgb(215, 226, 237)))
+            using (Pen pen = new Pen(palette.Border))
                 e.Graphics.DrawLine(pen, 10, y, e.Item.Width - 10, y);
         }
 
         protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e)
         {
-            e.ArrowColor = e.Item.Selected ? Color.White : textColor;
+            e.ArrowColor = e.Item.Selected ? Color.White : palette.TextSecondary;
             base.OnRenderArrow(e);
         }
     }
 
     public class ModernMenuColorTable : ProfessionalColorTable
     {
-        private readonly Color navy = Color.FromArgb(28, 61, 108);
-        private readonly Color hoverBlue = Color.FromArgb(224, 241, 252);
-        private readonly Color borderBlue = Color.FromArgb(0, 116, 181);
+        private readonly AppVisualPalette palette;
 
-        public override Color MenuItemSelected => hoverBlue;
-        public override Color MenuItemSelectedGradientBegin => hoverBlue;
-        public override Color MenuItemSelectedGradientEnd => hoverBlue;
-        public override Color MenuItemBorder => borderBlue;
-        public override Color MenuBorder => Color.FromArgb(182, 199, 216);
-        public override Color ToolStripDropDownBackground => Color.FromArgb(239, 247, 253);
-        public override Color ImageMarginGradientBegin => Color.FromArgb(224, 241, 252);
-        public override Color ImageMarginGradientMiddle => Color.FromArgb(224, 241, 252);
-        public override Color ImageMarginGradientEnd => Color.FromArgb(239, 247, 253);
-        public override Color SeparatorDark => Color.FromArgb(214, 224, 235);
-        public override Color SeparatorLight => Color.White;
-        public override Color CheckBackground => hoverBlue;
-        public override Color CheckSelectedBackground => hoverBlue;
-        public override Color CheckPressedBackground => hoverBlue;
-        public override Color ButtonSelectedBorder => borderBlue;
-        public override Color ButtonSelectedGradientBegin => navy;
-        public override Color ButtonSelectedGradientEnd => navy;
+        public ModernMenuColorTable(AppVisualPalette palette)
+        {
+            this.palette = palette;
+        }
+
+        public override Color MenuItemSelected => palette.SurfaceHover;
+        public override Color MenuItemSelectedGradientBegin => palette.SurfaceHover;
+        public override Color MenuItemSelectedGradientEnd => palette.SurfaceHover;
+        public override Color MenuItemBorder => palette.Accent;
+        public override Color MenuBorder => palette.Border;
+        public override Color ToolStripDropDownBackground => palette.Surface;
+        public override Color ImageMarginGradientBegin => palette.SurfaceMuted;
+        public override Color ImageMarginGradientMiddle => palette.SurfaceMuted;
+        public override Color ImageMarginGradientEnd => palette.Surface;
+        public override Color SeparatorDark => palette.Border;
+        public override Color SeparatorLight => palette.Surface;
+        public override Color CheckBackground => palette.SurfaceHover;
+        public override Color CheckSelectedBackground => palette.SurfaceHover;
+        public override Color CheckPressedBackground => palette.SurfacePressed;
+        public override Color ButtonSelectedBorder => palette.Accent;
+        public override Color ButtonSelectedGradientBegin => palette.Header;
+        public override Color ButtonSelectedGradientEnd => palette.Header;
     }
 
     public class ModernAboutDialog : Form
@@ -7292,6 +7845,7 @@ namespace UniversalScanner
             Controls.Add(okButton);
 
             AcceptButton = okButton;
+            AppVisualTheme.Apply(this);
         }
 
         private static Bitmap LoadApplicationIconBitmap()
@@ -7921,6 +8475,7 @@ namespace UniversalScanner
             Controls.Add(intervalBox);
             Controls.Add(startButton);
             Controls.Add(cancelButton);
+            AppVisualTheme.Apply(this);
         }
     }
 
@@ -7969,6 +8524,7 @@ namespace UniversalScanner
 
             Shown += async (s, e) => await StartPingAsync();
             FormClosing += (s, e) => CancelPings();
+            AppVisualTheme.Apply(this);
         }
 
         private void BuildUi()
@@ -8250,6 +8806,7 @@ namespace UniversalScanner
 
             BuildUi();
             Shown += async (s, e) => await StartPingAsync();
+            AppVisualTheme.Apply(this);
         }
 
         private void BuildUi()

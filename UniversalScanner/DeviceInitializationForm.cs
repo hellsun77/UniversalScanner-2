@@ -79,6 +79,7 @@ namespace UniversalScanner
             }
 
             ApplyUniversalLoginIfAvailable();
+            AppVisualTheme.Apply(this);
         }
 
         private void ApplyUniversalLoginIfAvailable()

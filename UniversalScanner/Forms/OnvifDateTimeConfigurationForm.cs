@@ -24,6 +24,7 @@ namespace UniversalScanner.Forms
             _ipAddress = ipAddress;
             _port = port;
             _isHikvisionWorkaround = isHikvisionWorkaround;
+            UniversalScanner.AppVisualTheme.Apply(this);
         }
 
         protected override void Dispose(bool disposing)

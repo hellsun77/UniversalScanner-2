@@ -43,6 +43,7 @@ namespace UniversalScanner.Forms
             lblVendor.Text = $"Vendor: {_vendor}";
             
             this.Load += MotionDetectionForm_Load;
+            UniversalScanner.AppVisualTheme.Apply(this);
         }
 
         private void InitializeCustomGrid()

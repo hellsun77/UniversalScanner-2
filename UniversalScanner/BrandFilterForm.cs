@@ -21,6 +21,7 @@ namespace UniversalScanner
             InitializeComponent();
             PopulateBrands();
             LoadCurrentSelection();
+            AppVisualTheme.Apply(this);
         }
 
         private void InitializeComponent()

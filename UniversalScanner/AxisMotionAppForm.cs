@@ -96,6 +96,7 @@ namespace UniversalScanner
 
             AcceptButton = startButton;
             CancelButton = cancelButton;
+            AppVisualTheme.Apply(this);
         }
 
         private void startButton_Click(object sender, EventArgs e)

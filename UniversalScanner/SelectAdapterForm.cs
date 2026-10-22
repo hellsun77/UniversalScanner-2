@@ -69,6 +69,7 @@ namespace UniversalScanner
             this.Controls.Add(btnCancel);
             this.AcceptButton = btnOk;
             this.CancelButton = btnCancel;
+            AppVisualTheme.Apply(this);
         }
 
         private void BtnOk_Click(object sender, EventArgs e)

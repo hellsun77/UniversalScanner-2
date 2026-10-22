@@ -16,8 +16,9 @@ namespace UniversalScanner
         private Bitmap logoBitmap;
         private int animationOffset = 0;
         private string currentStatus = "Loading...";
-        private readonly Color navy = Color.FromArgb(28, 61, 108);
-        private readonly Color accentBlue = Color.FromArgb(0, 116, 181);
+        private readonly AppVisualPalette palette = AppVisualTheme.Current;
+        private readonly Color navy = AppVisualTheme.Current.Header;
+        private readonly Color accentBlue = AppVisualTheme.Current.Accent;
         private readonly Color accentGreen = Color.FromArgb(63, 168, 112);
 
         public SplashForm()
@@ -26,7 +27,7 @@ namespace UniversalScanner
             Height = 320;
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.None;
-            BackColor = Color.FromArgb(245, 248, 252);
+            BackColor = palette.WindowBackground;
             Opacity = 1.0;
             TopMost = true;
             DoubleBuffered = true;
@@ -43,7 +44,7 @@ namespace UniversalScanner
             subtitleLabel = new Label();
             subtitleLabel.Text = "Discover - Analyze - Identify";
             subtitleLabel.Font = new Font("Segoe UI", 10, FontStyle.Regular);
-            subtitleLabel.ForeColor = Color.FromArgb(211, 224, 239);
+            subtitleLabel.ForeColor = palette.HeaderSecondaryText;
             subtitleLabel.TextAlign = ContentAlignment.MiddleLeft;
             subtitleLabel.BackColor = Color.Transparent;
             subtitleLabel.SetBounds(94, 62, 360, 20);
@@ -51,7 +52,7 @@ namespace UniversalScanner
             Label authorLogoLabel = new Label();
             authorLogoLabel.Text = "Anan Awwad";
             authorLogoLabel.Font = new Font("Segoe UI", 9, FontStyle.Regular);
-            authorLogoLabel.ForeColor = Color.FromArgb(150, 180, 210);
+            authorLogoLabel.ForeColor = palette.HeaderSecondaryText;
             authorLogoLabel.TextAlign = ContentAlignment.MiddleLeft;
             authorLogoLabel.BackColor = Color.Transparent;
             authorLogoLabel.SetBounds(94, 82, 360, 20);
@@ -59,7 +60,7 @@ namespace UniversalScanner
             statusLabel = new Label();
             statusLabel.Text = currentStatus;
             statusLabel.Font = new Font("Segoe UI", 10.5F, FontStyle.Regular);
-            statusLabel.ForeColor = Color.FromArgb(29, 39, 53);
+            statusLabel.ForeColor = palette.TextPrimary;
             statusLabel.TextAlign = ContentAlignment.MiddleLeft;
             statusLabel.BackColor = Color.Transparent;
             statusLabel.SetBounds(52, 186, 476, 30);
@@ -67,7 +68,7 @@ namespace UniversalScanner
             versionLabel = new Label();
             versionLabel.Text = "Version 2.1";
             versionLabel.Font = new Font("Segoe UI", 9, FontStyle.Regular);
-            versionLabel.ForeColor = Color.FromArgb(99, 113, 129);
+            versionLabel.ForeColor = palette.TextSecondary;
             versionLabel.TextAlign = ContentAlignment.MiddleLeft;
             versionLabel.BackColor = Color.Transparent;
             versionLabel.SetBounds(52, 266, 200, 25);
@@ -75,7 +76,7 @@ namespace UniversalScanner
             greetingLabel = new Label();
             greetingLabel.Text = "Greeting from Anan Awwad";
             greetingLabel.Font = new Font("Segoe UI", 9, FontStyle.Italic);
-            greetingLabel.ForeColor = Color.FromArgb(99, 113, 129);
+            greetingLabel.ForeColor = palette.TextSecondary;
             greetingLabel.TextAlign = ContentAlignment.MiddleRight;
             greetingLabel.BackColor = Color.Transparent;
             greetingLabel.SetBounds(278, 266, 250, 25);
@@ -127,7 +128,7 @@ namespace UniversalScanner
             g.Clear(BackColor);
 
             Rectangle borderRect = new Rectangle(0, 0, Width - 1, Height - 1);
-            using (Pen borderPen = new Pen(Color.FromArgb(195, 207, 220)))
+            using (Pen borderPen = new Pen(palette.BorderStrong))
             {
                 g.DrawRectangle(borderPen, borderRect);
             }
@@ -144,7 +145,7 @@ namespace UniversalScanner
             }
 
             Rectangle iconBackRect = new Rectangle(28, 29, 46, 46);
-            using (SolidBrush iconBackBrush = new SolidBrush(Color.FromArgb(48, 92, 143)))
+            using (SolidBrush iconBackBrush = new SolidBrush(palette.AccentPressed))
             {
                 g.FillEllipse(iconBackBrush, iconBackRect);
             }
@@ -157,26 +158,27 @@ namespace UniversalScanner
 
             Rectangle bodyPanel = new Rectangle(40, 146, Width - 80, 102);
             using (GraphicsPath bodyPath = RoundedRect(bodyPanel, 8))
-            using (SolidBrush bodyBrush = new SolidBrush(Color.White))
-            using (Pen bodyPen = new Pen(Color.FromArgb(224, 232, 241)))
+            using (SolidBrush bodyBrush = new SolidBrush(palette.Surface))
+            using (Pen bodyPen = new Pen(palette.Border))
             {
                 g.FillPath(bodyBrush, bodyPath);
                 g.DrawPath(bodyPen, bodyPath);
             }
 
             Rectangle smallRadar = new Rectangle(478, 164, 32, 32);
-            using (SolidBrush radarBackBrush = new SolidBrush(Color.FromArgb(235, 246, 241)))
+            using (SolidBrush radarBackBrush = new SolidBrush(palette.SurfaceMuted))
             using (Pen radarPen = new Pen(accentGreen, 2))
             {
                 g.FillEllipse(radarBackBrush, smallRadar);
                 g.DrawEllipse(radarPen, smallRadar);
                 g.DrawLine(radarPen, smallRadar.Left + 16, smallRadar.Top + 16, smallRadar.Right - 7, smallRadar.Top + 9);
-                g.FillEllipse(Brushes.White, smallRadar.Left + 13, smallRadar.Top + 13, 6, 6);
+                using (SolidBrush centerBrush = new SolidBrush(palette.SelectionText))
+                    g.FillEllipse(centerBrush, smallRadar.Left + 13, smallRadar.Top + 13, 6, 6);
             }
 
             Rectangle barBack = new Rectangle(52, 224, 476, 10);
             using (GraphicsPath backPath = RoundedRect(barBack, 5))
-            using (SolidBrush backBrush = new SolidBrush(Color.FromArgb(222, 229, 237)))
+            using (SolidBrush backBrush = new SolidBrush(palette.SurfacePressed))
             {
                 g.FillPath(backBrush, backPath);
             }

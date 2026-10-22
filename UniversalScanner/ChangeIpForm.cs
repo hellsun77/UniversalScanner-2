@@ -90,6 +90,7 @@ namespace UniversalScanner
             gatewayEdited = false;
             usernameBox.Text = isBosch ? "service" : isAxis ? "root" : "admin";
             ApplyUniversalLoginIfAvailable(preserveDefaultUsername: isHoneywell);
+            AppVisualTheme.Apply(this);
         }
 
         private void ApplyUniversalLoginIfAvailable(bool preserveDefaultUsername = false)

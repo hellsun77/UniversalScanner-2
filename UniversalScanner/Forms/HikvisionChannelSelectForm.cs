@@ -47,6 +47,7 @@ namespace UniversalScanner.Forms
             ClientSize = new Size(380, _isFallback ? 250 : 210);
 
             BuildUi();
+            UniversalScanner.AppVisualTheme.Apply(this);
         }
 
         private void BuildUi()

@@ -23,6 +23,7 @@ namespace UniversalScanner.Forms
             _ips = ips;
             InitializeComponent();
             PopulateGrid();
+            UniversalScanner.AppVisualTheme.Apply(this);
         }
 
         private void InitializeComponent()

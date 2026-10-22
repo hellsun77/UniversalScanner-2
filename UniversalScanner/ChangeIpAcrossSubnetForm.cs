@@ -50,6 +50,7 @@ namespace UniversalScanner
 
             BuildUi();
             LoadData();
+            AppVisualTheme.Apply(this);
         }
 
         private void BuildUi()

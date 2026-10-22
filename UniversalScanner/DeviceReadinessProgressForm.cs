@@ -13,6 +13,7 @@ namespace UniversalScanner
         {
             InitializeComponent();
             _verificationTask = verificationTask;
+            AppVisualTheme.Apply(this);
         }
 
         private async void DeviceReadinessProgressForm_Load(object sender, EventArgs e)

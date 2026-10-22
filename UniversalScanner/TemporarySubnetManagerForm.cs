@@ -10,6 +10,7 @@ namespace UniversalScanner
         public TemporarySubnetManagerForm()
         {
             InitializeComponent();
+            AppVisualTheme.Apply(this);
         }
 
         private void TemporarySubnetManagerForm_Load(object sender, EventArgs e)

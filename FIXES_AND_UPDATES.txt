@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-22] update: apply premium light and dark WinForms visual system
+- Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/UniversalScanner.AdvancedView.cs, UniversalScanner/SplashForm.cs, UniversalScanner/SpecialThanksForm.cs, and existing dialog form source files; FIXES_AND_UPDATES.txt
+- Summary: Added a centralized Windows 11-inspired visual palette that follows the Windows app theme, consistent Segoe UI typography, drawn command icons, polished buttons and interaction states, modern menus, improved device-grid and status styling, dark window chrome, themed progress bars, and coordinated styling for existing dialogs without changing their controls, commands, event bindings, workflows, or device logic.
+- Verification: Release x86 rebuild passed with 0 errors and 4 existing warnings after each implementation phase; final light and dark renders of the main window and representative dialogs were visually inspected with no clipping or overlap. All Designer files remain unchanged and compile successfully, but a Visual Studio Designer open/save/reopen check was unavailable because this PC has Visual Studio Build Tools only. Deep Code plan and diff reviews produced no output and were stopped as unavailable; focused manual diff review and git diff --check passed.
+- Commit: cdee492660ea6e640f0c326f5fbf57bf3ac47715
+
 [2026-10-15] correction: order fixes and updates newest first
 - Files changed: FIXES_AND_UPDATES.txt
 - Summary: Reordered all existing records by change time so the newest update is at the top and the oldest update is at the bottom.

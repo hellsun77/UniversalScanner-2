@@ -40,6 +40,7 @@ namespace UniversalScanner.Forms
                 Vendor = d.Vendor,
                 Model = d.Model
             }).ToList();
+            UniversalScanner.AppVisualTheme.Apply(this);
         }
 
         private void OnvifBatchDateTimeConfigurationForm_Load(object sender, EventArgs e)

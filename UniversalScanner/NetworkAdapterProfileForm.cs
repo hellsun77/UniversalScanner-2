@@ -38,6 +38,7 @@ namespace UniversalScanner
 
             BuildUi();
             Shown += async (s, e) => await LoadAdaptersAsync();
+            AppVisualTheme.Apply(this);
         }
 
         private void BuildUi()

@@ -66,6 +66,7 @@ namespace UniversalScanner
             InitializeEventTable();
             InitializeUI();
             WireUpEvents();
+            AppVisualTheme.Apply(this);
         }
 
         private void InitializeComponent()

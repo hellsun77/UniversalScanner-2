@@ -7,12 +7,12 @@ namespace UniversalScanner
     public class SpecialThanksForm : Form
     {
         private Bitmap logoBitmap;
-        private readonly Color bgDark = Color.FromArgb(20, 24, 34);
-        private readonly Color textWhite = Color.White;
-        private readonly Color textLightGray = Color.FromArgb(170, 180, 190);
-        private readonly Color textGray = Color.FromArgb(220, 220, 220);
-        private readonly Color accentCyan = Color.FromArgb(0, 160, 230);
-        private readonly Color authorRed = Color.FromArgb(211, 47, 47);
+        private readonly Color bgDark = AppVisualTheme.Current.WindowBackground;
+        private readonly Color textWhite = AppVisualTheme.Current.TextPrimary;
+        private readonly Color textLightGray = AppVisualTheme.Current.TextSecondary;
+        private readonly Color textGray = AppVisualTheme.Current.TextSecondary;
+        private readonly Color accentCyan = AppVisualTheme.Current.AccentText;
+        private readonly Color authorRed = AppVisualTheme.Current.Danger;
 
         public SpecialThanksForm()
         {
@@ -86,7 +86,7 @@ namespace UniversalScanner
                 g.DrawImage(logoBitmap, iconRect);
             }
 
-            using (Pen sepPen = new Pen(Color.FromArgb(50, 60, 75)))
+            using (Pen sepPen = new Pen(AppVisualTheme.Current.Border))
             {
                 g.DrawLine(sepPen, 120, 190, Width - 120, 190);
             }

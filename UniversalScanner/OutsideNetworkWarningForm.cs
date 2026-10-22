@@ -24,6 +24,7 @@ namespace UniversalScanner
             BackColor = Color.White;
 
             BuildUi();
+            AppVisualTheme.Apply(this);
         }
 
         private void BuildUi()

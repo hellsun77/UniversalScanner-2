@@ -65,6 +65,7 @@ namespace UniversalScanner
             usernameBox.Text = "admin";
             SetPathBoxInternal(GetRtspPath(vendor, model, useSubStream));
             UpdatePreview();
+            AppVisualTheme.Apply(this);
         }
 
         private void BuildUi()

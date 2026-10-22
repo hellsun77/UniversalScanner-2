@@ -20,6 +20,7 @@ namespace UniversalScanner.Forms
         {
             _ip = ip;
             InitializeComponent();
+            UniversalScanner.AppVisualTheme.Apply(this);
         }
 
         private void InitializeComponent()

@@ -80,9 +80,10 @@ namespace UniversalScanner
 
         private void BuildAdvancedViewPanel()
         {
+            AppVisualPalette palette = AppVisualTheme.Current;
             advancedViewPanel = new Panel
             {
-                BackColor = Color.FromArgb(250, 252, 255),
+                BackColor = palette.Surface,
                 BorderStyle = BorderStyle.FixedSingle,
                 Visible = false
             };
@@ -90,55 +91,63 @@ namespace UniversalScanner
             advancedViewTitleLabel = new Label
             {
                 AutoSize = false,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(28, 61, 108),
+                Font = new Font("Segoe UI Semibold", 10F, FontStyle.Regular),
+                ForeColor = palette.AccentText,
                 Text = "Advanced Device Analysis"
             };
 
             advancedViewStatusLabel = new Label
             {
                 AutoSize = false,
-                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
-                ForeColor = Color.FromArgb(29, 39, 53),
+                Font = AppVisualTheme.BodyFont,
+                ForeColor = palette.TextPrimary,
                 Text = "Fingerprint, classifier, confidence, and protocol analysis scaffolding is ready."
             };
 
             advancedViewDatabaseLabel = new Label
             {
                 AutoSize = false,
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
-                ForeColor = Color.FromArgb(82, 96, 112),
+                Font = AppVisualTheme.CaptionFont,
+                ForeColor = palette.TextSecondary,
                 Text = "AI knowledge database: not loaded"
             };
 
             advancedSelectedDeviceLabel = new Label
             {
                 AutoSize = false,
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
-                ForeColor = Color.FromArgb(29, 39, 53),
+                Font = AppVisualTheme.CaptionFont,
+                ForeColor = palette.TextPrimary,
                 Text = "Selected device: none"
             };
 
             advancedConfidenceLabel = new Label
             {
                 AutoSize = false,
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
-                ForeColor = Color.FromArgb(29, 39, 53),
+                Font = AppVisualTheme.CaptionFont,
+                ForeColor = palette.TextPrimary,
                 Text = "Classification confidence: 0%"
             };
 
             saveSelectedFingerprintButton = new Button
             {
                 Text = "Save Fingerprint",
-                Enabled = false
+                Enabled = false,
+                BackColor = palette.Accent,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = AppVisualTheme.ButtonFont,
+                Cursor = Cursors.Hand
             };
+            saveSelectedFingerprintButton.FlatAppearance.BorderColor = palette.Accent;
+            saveSelectedFingerprintButton.FlatAppearance.MouseOverBackColor = palette.AccentHover;
+            saveSelectedFingerprintButton.FlatAppearance.MouseDownBackColor = palette.AccentPressed;
             saveSelectedFingerprintButton.Click += saveSelectedFingerprintButton_Click;
 
             advancedSaveStatusLabel = new Label
             {
                 AutoSize = false,
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
-                ForeColor = Color.FromArgb(82, 96, 112),
+                Font = AppVisualTheme.CaptionFont,
+                ForeColor = palette.TextSecondary,
                 Text = "Fingerprint not saved"
             };
 
@@ -201,10 +210,10 @@ namespace UniversalScanner
         private void UpdateViewMenuText()
         {
             if (normalViewToolStripMenuItem != null)
-                normalViewToolStripMenuItem.Text = (normalViewToolStripMenuItem.Checked ? "☑ " : "☐ ") + "Normal View";
+                normalViewToolStripMenuItem.Text = "Normal View";
 
             if (advancedViewToolStripMenuItem != null)
-                advancedViewToolStripMenuItem.Text = (advancedViewToolStripMenuItem.Checked ? "☑ " : "☐ ") + "Advanced View";
+                advancedViewToolStripMenuItem.Text = "Advanced View";
         }
 
         private void UpdateAdvancedToolsAvailability()
@@ -759,8 +768,12 @@ namespace UniversalScanner
             if (row == null)
                 return;
 
-            row.DefaultCellStyle.BackColor = Color.FromArgb(255, 248, 220);
-            row.DefaultCellStyle.ForeColor = Color.FromArgb(84, 57, 0);
+            row.DefaultCellStyle.BackColor = AppVisualTheme.Current.IsDark
+                ? Color.FromArgb(73, 61, 27)
+                : Color.FromArgb(255, 248, 220);
+            row.DefaultCellStyle.ForeColor = AppVisualTheme.Current.IsDark
+                ? Color.FromArgb(255, 225, 151)
+                : Color.FromArgb(84, 57, 0);
 
             string tooltip = "AI brand override active: treated as " + brand + ".";
             SetCellToolTip(row, Columns.Vendor, tooltip);
@@ -776,8 +789,8 @@ namespace UniversalScanner
             if (vendor.EndsWith(BrandOverrideDisplaySuffix, StringComparison.OrdinalIgnoreCase))
                 SetCellText(row, Columns.Vendor, vendor.Substring(0, vendor.Length - BrandOverrideDisplaySuffix.Length));
 
-            row.DefaultCellStyle.BackColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.BackColor : Color.White;
-            row.DefaultCellStyle.ForeColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.ForeColor : Color.Black;
+            row.DefaultCellStyle.BackColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.BackColor : AppVisualTheme.Current.Surface;
+            row.DefaultCellStyle.ForeColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.ForeColor : AppVisualTheme.Current.TextPrimary;
             SetCellToolTip(row, Columns.Vendor, "");
             SetCellToolTip(row, Columns.Protocol, "");
         }
@@ -815,8 +828,8 @@ namespace UniversalScanner
                 }
             }
 
-            row.DefaultCellStyle.BackColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.BackColor : Color.White;
-            row.DefaultCellStyle.ForeColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.ForeColor : Color.Black;
+            row.DefaultCellStyle.BackColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.BackColor : AppVisualTheme.Current.Surface;
+            row.DefaultCellStyle.ForeColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.ForeColor : AppVisualTheme.Current.TextPrimary;
             SetCellToolTip(row, Columns.Vendor, "");
             SetCellToolTip(row, Columns.Protocol, "");
         }

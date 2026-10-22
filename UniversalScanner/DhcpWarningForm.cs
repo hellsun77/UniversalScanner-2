@@ -13,6 +13,7 @@ namespace UniversalScanner
         public DhcpWarningForm()
         {
             InitializeComponent();
+            AppVisualTheme.Apply(this);
         }
 
         private void InitializeComponent()

@@ -28,6 +28,7 @@ namespace UniversalScanner
             ClientSize = new Size(500, 320);
 
             BuildUi();
+            AppVisualTheme.Apply(this);
         }
 
         private void BuildUi()
