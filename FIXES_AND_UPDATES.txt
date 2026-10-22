@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-22] update: enhance Subnet Discovery controls and advance version to 2.4
+- Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
+- Summary: Refined the existing subnet scan area with a compact Subnet Discovery caption, aligned button and input heights, a themed network icon, a stronger input boundary, and improved spacing into the progress indicator without changing the subnet value, scan command, event handler, or workflow. Advanced the synchronized application version from 2.3 to 2.4.
+- Verification: Release x86 rebuild passed with 0 errors and 4 existing warnings; light and dark main-window renders were visually inspected with no clipping or overlap, and the rebuilt executable reports File Version and Product Version 2.4.0.0.
+- Commit: 219b9324910eef39c00281a12e0cb8ee7e6d4397
+
 [2026-10-22] fix: increase Stop Scan icon spacing and advance version to 2.3
 - Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
 - Summary: Kept the Stop Scan icon anchored at the left of its existing button and shifted the caption farther right for clearer separation in both themes. Advanced the synchronized application version from 2.2 to 2.3.

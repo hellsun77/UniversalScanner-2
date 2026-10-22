@@ -96,6 +96,9 @@ namespace UniversalScanner
         private Label headerSubtitleLabel;
         private Label headerTimeLabel;
         private Label headerDateLabel;
+        private Label subnetModuleLabel;
+        private Panel subnetInputPanel;
+        private PictureBox subnetInputIconBox;
         private System.Windows.Forms.Timer headerClockTimer;
         private bool mainDesignApplied;
         private const int MainHeaderHeight = 64;
@@ -6769,6 +6772,29 @@ namespace UniversalScanner
                     e.Graphics.DrawLine(pen, 0, toolbarPanel.Height - 1, toolbarPanel.Width, toolbarPanel.Height - 1);
             };
 
+            subnetModuleLabel = new Label
+            {
+                AutoSize = false,
+                BackColor = Color.Transparent,
+                ForeColor = palette.TextSecondary,
+                Font = new Font("Segoe UI Semibold", 7.5F, FontStyle.Regular),
+                Text = "SUBNET DISCOVERY",
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            subnetInputPanel = new Panel
+            {
+                BackColor = palette.InputBackground
+            };
+            subnetInputPanel.Paint += SubnetInputPanel_Paint;
+
+            subnetInputIconBox = new PictureBox
+            {
+                BackColor = Color.Transparent,
+                Image = AppVisualTheme.CreateIcon(AppVisualIcon.Network, palette.TextSecondary),
+                SizeMode = PictureBoxSizeMode.CenterImage
+            };
+
             headerIconBox = new PictureBox
             {
                 Image = Icon != null ? Icon.ToBitmap() : null,
@@ -6841,8 +6867,11 @@ namespace UniversalScanner
             loginToolStripMenuItem.Image = AppVisualTheme.CreateIcon(AppVisualIcon.Lock, Color.White);
             toolbarPanel.Controls.Add(scanButton);
             toolbarPanel.Controls.Add(newVersion);
+            toolbarPanel.Controls.Add(subnetModuleLabel);
             toolbarPanel.Controls.Add(scanSubnetButton);
-            toolbarPanel.Controls.Add(subnetTextBox);
+            toolbarPanel.Controls.Add(subnetInputPanel);
+            subnetInputPanel.Controls.Add(subnetInputIconBox);
+            subnetInputPanel.Controls.Add(subnetTextBox);
             toolbarPanel.Controls.Add(scanProgressBar);
             toolbarPanel.Controls.Add(stopSubnetButton);
             toolbarPanel.Controls.Add(aboutButton);
@@ -6862,7 +6891,7 @@ namespace UniversalScanner
             subnetTextBox.Font = AppVisualTheme.BodyFont;
             subnetTextBox.BackColor = palette.InputBackground;
             subnetTextBox.ForeColor = palette.TextPrimary;
-            subnetTextBox.BorderStyle = BorderStyle.FixedSingle;
+            subnetTextBox.BorderStyle = BorderStyle.None;
             scanProgressBar.Style = ProgressBarStyle.Continuous;
             scanProgressBar.BackColor = palette.SurfaceMuted;
             scanProgressBar.ForeColor = palette.Accent;
@@ -6895,6 +6924,8 @@ namespace UniversalScanner
             headerSubtitleLabel.ForeColor = palette.HeaderSecondaryText;
             headerTimeLabel.ForeColor = Color.White;
             headerDateLabel.ForeColor = palette.HeaderSecondaryText;
+            subnetModuleLabel.ForeColor = palette.TextSecondary;
+            subnetInputPanel.BackColor = palette.InputBackground;
 
             modernMenuRenderer = new ModernMenuRenderer(palette);
             StyleMainMenu(palette.Header);
@@ -6904,6 +6935,7 @@ namespace UniversalScanner
             ReplaceControlImage(aboutButton, AppVisualTheme.CreateIcon(AppVisualIcon.Info, palette.TextSecondary));
             ReplaceMenuImage(toolsToolStripMenuItem, AppVisualTheme.CreateIcon(AppVisualIcon.Tools, Color.White));
             ReplaceMenuImage(loginToolStripMenuItem, AppVisualTheme.CreateIcon(AppVisualIcon.Lock, Color.White));
+            ReplacePictureImage(subnetInputIconBox, AppVisualTheme.CreateIcon(AppVisualIcon.Network, palette.TextSecondary));
 
             StyleToolbarButton(scanButton, palette.Accent, Color.White, palette.Accent, true);
             StyleToolbarButton(scanSubnetButton, palette.Accent, Color.White, palette.Accent, true);
@@ -6923,6 +6955,7 @@ namespace UniversalScanner
             AppVisualTheme.ApplyWindowChrome(this);
             AppVisualTheme.ApplyProgressBarColors(scanProgressBar);
             toolbarPanel.Invalidate();
+            subnetInputPanel.Invalidate();
             Invalidate(true);
         }
 
@@ -6943,6 +6976,23 @@ namespace UniversalScanner
             item.Image = image;
             if (oldImage != null)
                 oldImage.Dispose();
+        }
+
+        private static void ReplacePictureImage(PictureBox pictureBox, Image image)
+        {
+            Image oldImage = pictureBox.Image;
+            pictureBox.Image = image;
+            if (oldImage != null)
+                oldImage.Dispose();
+        }
+
+        private void SubnetInputPanel_Paint(object sender, PaintEventArgs e)
+        {
+            Rectangle border = new Rectangle(0, 0, subnetInputPanel.Width - 1, subnetInputPanel.Height - 1);
+            using (Pen borderPen = new Pen(AppVisualTheme.Current.BorderStrong))
+                e.Graphics.DrawRectangle(borderPen, border);
+            using (Pen accentPen = new Pen(AppVisualTheme.Current.Accent, 2F))
+                e.Graphics.DrawLine(accentPen, 1, 1, 1, subnetInputPanel.Height - 2);
         }
 
         private void ScannerWindow_DesignResize(object sender, EventArgs e)
@@ -6985,12 +7035,15 @@ namespace UniversalScanner
 
             scanButton.SetBounds(18, 27, 88, 30);
             newVersion.SetBounds(114, 35, 110, 18);
-            scanSubnetButton.SetBounds(212, 27, 116, 30);
-            subnetTextBox.SetBounds(334, 31, 100, 23);
+            subnetModuleLabel.SetBounds(212, 7, 244, 16);
+            scanSubnetButton.SetBounds(212, 27, 120, 30);
+            subnetInputPanel.SetBounds(340, 27, 116, 30);
+            subnetInputIconBox.SetBounds(7, 6, 18, 18);
+            subnetTextBox.SetBounds(31, 7, 77, 18);
 
             aboutButton.SetBounds(toolbarPanel.Width - 94, 27, 76, 30);
 
-            int progressLeft = 454;
+            int progressLeft = 476;
             int progressRight = Math.Min(
                 toolbarPanel.Width - 220,
                 Math.Max(progressLeft + 120, toolbarPanel.Width - 630));
