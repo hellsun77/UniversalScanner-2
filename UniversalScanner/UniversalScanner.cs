@@ -7132,6 +7132,9 @@ namespace UniversalScanner
                 ? Color.FromArgb(111, 43, 38)
                 : Color.FromArgb(249, 211, 207);
             button.Padding = new Padding(7, 0, 7, 0);
+            button.ImageAlign = ContentAlignment.MiddleLeft;
+            button.TextAlign = ContentAlignment.MiddleRight;
+            button.TextImageRelation = TextImageRelation.Overlay;
         }
 
         private void StyleMainGrid()

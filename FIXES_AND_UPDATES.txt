@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-22] fix: increase Stop Scan icon spacing and advance version to 2.3
+- Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
+- Summary: Kept the Stop Scan icon anchored at the left of its existing button and shifted the caption farther right for clearer separation in both themes. Advanced the synchronized application version from 2.2 to 2.3.
+- Verification: Release x86 rebuild passed with 0 errors and 4 existing warnings; File Version and Product Version report 2.3.0.0, and light/dark renders confirm increased spacing between the Stop Scan icon and caption without clipping or overlap.
+- Commit: 7996414dc80b9b316ba08a4f57bd0195f55998c5
+
 [2026-10-22] update: advance app version to 2.2
 - Files changed: UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, UniversalScanner/UniversalScanner.cs, README.md, FIXES_AND_UPDATES.txt
 - Summary: Advanced UniversalScanner from version 2.1 to 2.2 across assembly metadata, the splash screen, About dialog, and repository front page, and updated the About build date for the current Release build.
