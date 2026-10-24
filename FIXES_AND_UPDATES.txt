@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-24] fix: dispatch discovery startup off the UI thread; advance version to 2.91
+- Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
+- Summary: Dispatch the existing serial scanEvent callbacks through an awaited background task for normal scan, clear-and-rescan, refresh, and subnet workflows. Serialize dispatch so overlapping actions cannot invoke the discovery engines concurrently. Keep all UI setup and result handling on the UI thread and preserve the existing engine order.
+- Verification: Deep Code plan review stalled without returning feedback; per AGENTS.md, record the limitation and continue with manual review and Release x86 rebuild. Live discovery and 481-device responsiveness require the camera network and remain unverified. About build date is October 24, 2026.
+- Commit: 082666498081639cf90f389e6d5231f3b47f03ac
+
 [2026-10-24] fix: coalesce discovery UI updates to prevent large-list startup hangs; advance version to 2.9
 - Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/UniversalScanner.AdvancedView.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
 - Summary: Coalesce device-count label updates and selected-device panel refreshes. During large loads, repeated selection events now collapse into one refresh, avoiding repeated synchronous classification and AI knowledge database access while keeping the panel matched to the latest selection. Advanced the synchronized application version from 2.8 to 2.9.

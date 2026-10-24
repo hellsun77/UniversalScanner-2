@@ -56,6 +56,7 @@ namespace UniversalScanner
         private string currentSubnetScanIp = "";
         private int statusMessageVersion;
         private bool _normalScanFilterActive = false;
+        private readonly SemaphoreSlim scanEventDispatchSemaphore = new SemaphoreSlim(1, 1);
 
         public bool IsNormalScanExecuting { get; set; } = false;
 
@@ -688,8 +689,24 @@ namespace UniversalScanner
             _normalScanFilterActive = true;
 
             Logger.getInstance().WriteLine(Logger.DebugLevel.Info, "[Normal Scan] scanEvent fired");
-            if (scanEvent != null)
-                scanEvent.Invoke();
+            await InvokeScanEnginesAsync();
+        }
+
+        private async Task InvokeScanEnginesAsync()
+        {
+            scan scanHandlers = scanEvent;
+            if (scanHandlers == null)
+                return;
+
+            await scanEventDispatchSemaphore.WaitAsync();
+            try
+            {
+                await Task.Run(() => scanHandlers.Invoke());
+            }
+            finally
+            {
+                scanEventDispatchSemaphore.Release();
+            }
         }
 
         private async Task StopActiveSubnetScanAsync()
@@ -3284,7 +3301,7 @@ namespace UniversalScanner
             return prefix;
         }
 
-        private void clearListToolStripMenuItem_Click(object sender, EventArgs e)
+        private async void clearListToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show(this, "The current list will be cleared. Are you sure?", "Clear the discovered item list",
                 MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.Yes)
@@ -3292,8 +3309,7 @@ namespace UniversalScanner
                 foundDeviceList.Clear();
                 dataGridView1.Refresh();
 
-                if (scanEvent != null)
-                    scanEvent.Invoke();
+                await InvokeScanEnginesAsync();
             }
         }
 
@@ -3390,10 +3406,9 @@ namespace UniversalScanner
             return (value ?? "").Replace("'", "''");
         }
 
-        private void refreshToolStripMenuItem_Click(object sender, EventArgs e)
+        private async void refreshToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (scanEvent != null)
-                scanEvent.Invoke();
+            await InvokeScanEnginesAsync();
         }
 
         private void ScannerWindow_Shown(object sender, EventArgs e)
@@ -4072,8 +4087,7 @@ namespace UniversalScanner
             PrepareSubnetScanUi();
             ClearDeviceListPreservingRecentIpChanges();
 
-            if (scanEvent != null)
-                scanEvent.Invoke();
+            await InvokeScanEnginesAsync();
 
             await Task.Delay(2000, cancellationToken);
 
@@ -4099,8 +4113,7 @@ namespace UniversalScanner
             PrepareSubnetScanUi();
             ClearDeviceListPreservingRecentIpChanges();
 
-            if (scanEvent != null)
-                scanEvent.Invoke();
+            await InvokeScanEnginesAsync();
 
             await Task.Delay(2000, cancellationToken);
 
