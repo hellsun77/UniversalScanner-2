@@ -61,7 +61,32 @@ namespace UniversalScanner
 
         private DataTable foundDeviceList;
         private BindingSource binding;
-        private Dictionary<string, int> protocolFormat;
+        private Dictionary<string, int> protocolFormat = new Dictionary<string, int>();
+        [ThreadStatic]
+        private static bool applyingScannerDataMutation;
+        private readonly Dictionary<string, Color> readableProtocolColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Color[] DarkProtocolFallbackColors = {
+            Color.FromArgb(105, 190, 255), Color.FromArgb(105, 220, 155),
+            Color.FromArgb(255, 205, 95), Color.FromArgb(255, 135, 170),
+            Color.FromArgb(115, 225, 225), Color.FromArgb(205, 155, 255),
+            Color.FromArgb(255, 160, 105), Color.FromArgb(185, 220, 115),
+            Color.FromArgb(149, 167, 255), Color.FromArgb(98, 208, 160),
+            Color.FromArgb(242, 182, 255), Color.FromArgb(231, 231, 125),
+            Color.FromArgb(116, 183, 213), Color.FromArgb(239, 164, 112),
+            Color.FromArgb(199, 169, 245), Color.FromArgb(145, 204, 119),
+            Color.FromArgb(216, 160, 98)
+        };
+        private static readonly Color[] LightProtocolFallbackColors = {
+            Color.FromArgb(0, 92, 160), Color.FromArgb(0, 120, 75),
+            Color.FromArgb(155, 88, 0), Color.FromArgb(165, 45, 95),
+            Color.FromArgb(0, 112, 125), Color.FromArgb(105, 65, 155),
+            Color.FromArgb(170, 65, 25), Color.FromArgb(82, 115, 0),
+            Color.FromArgb(53, 78, 162), Color.FromArgb(0, 101, 91),
+            Color.FromArgb(132, 46, 111), Color.FromArgb(126, 96, 0),
+            Color.FromArgb(0, 86, 125), Color.FromArgb(155, 66, 32),
+            Color.FromArgb(73, 73, 153), Color.FromArgb(64, 105, 34),
+            Color.FromArgb(124, 74, 35)
+        };
         private VersionManager localVersion;
         private StatusStrip statusStrip;
         private ToolStripStatusLabel statusLabel;
@@ -173,7 +198,39 @@ namespace UniversalScanner
 
             binding = new BindingSource();
             binding.DataSource = foundDeviceList;
-            binding.ListChanged += (s, ev) => UpdateDeviceCountLabel();
+            binding.ListChanged += (s, ev) =>
+            {
+                UpdateDeviceCountLabel();
+                if (ev.ListChangedType != System.ComponentModel.ListChangedType.ItemChanged)
+                    return;
+
+                bool isScannerMutation = applyingScannerDataMutation;
+                Action refreshChangedRow = () =>
+                {
+                    if (dataGridView1.IsDisposed || ev.NewIndex < 0 || ev.NewIndex >= dataGridView1.Rows.Count)
+                        return;
+
+                    DataGridViewRow changedRow = dataGridView1.Rows[ev.NewIndex];
+                    ApplyDiscoveryRowStyle(changedRow);
+                    QueueAdvancedRowRefresh(changedRow, isScannerMutation);
+                };
+
+                if (dataGridView1.IsHandleCreated && dataGridView1.InvokeRequired)
+                {
+                    try
+                    {
+                        dataGridView1.BeginInvoke(refreshChangedRow);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // The form may close after the handle check but before this post.
+                    }
+                }
+                else
+                {
+                    refreshChangedRow();
+                }
+            };
             ApplyUnconfiguredDevicesFilter();
 
             dataGridView1.DataSource = binding;
@@ -182,6 +239,12 @@ namespace UniversalScanner
             {
                 UpdateSelectedCountLabel();
                 UpdateAdvancedSelectedDevicePanel();
+            };
+            dataGridView1.RowsAdded += (s, ev) =>
+            {
+                int end = Math.Min(dataGridView1.Rows.Count, ev.RowIndex + ev.RowCount);
+                for (int index = Math.Max(0, ev.RowIndex); index < end; index++)
+                    ApplyDiscoveryRowStyle(dataGridView1.Rows[index]);
             };
             dataGridView1.Refresh();
             BuildStatusBar();
@@ -200,7 +263,6 @@ namespace UniversalScanner
             if (dataGridView1.Columns.Contains(ColumnNames[(int)Columns.UniqueId]))
                 dataGridView1.Columns[ColumnNames[(int)Columns.UniqueId]].Visible = false;
 
-            protocolFormat = new Dictionary<string, int>();
             protocolFormat["Uniview"] = Color.Purple.ToArgb();
             protocolFormat["Sunell"] = Color.DarkCyan.ToArgb();
             localVersion = new VersionManager();
@@ -366,6 +428,7 @@ namespace UniversalScanner
 
             try
             {
+                ResetAdvancedAutoLearnTotals();
                 currentScanSessionId = Guid.NewGuid();
                 axisDeepDiscoveryActive = true;
                 await ShowStatusAsync("Axis Deep Discovery: preparing 169.254.x.x discovery...");
@@ -609,6 +672,7 @@ namespace UniversalScanner
         {
             await StopActiveSubnetScanAsync();
 
+            ResetAdvancedAutoLearnTotals();
             currentScanSessionId = Guid.NewGuid();
             Logger.getInstance().WriteLine(Logger.DebugLevel.Info, $"[Normal Scan] StartAutoScanAsync entered. SessionID: {currentScanSessionId}");
 
@@ -910,9 +974,9 @@ namespace UniversalScanner
 
             // Important: update the existing row IP instead of adding a new row.
             // This is what prevents duplicates during IP changes.
-            existingRow[(int)Columns.IPAddress] = deviceIP;
+            RunScannerDataMutation(() => existingRow[(int)Columns.IPAddress] = deviceIP);
             if (!string.IsNullOrWhiteSpace(discoveredMac))
-                existingRow[(int)Columns.MAC] = discoveredMac;
+                RunScannerDataMutation(() => existingRow[(int)Columns.MAC] = discoveredMac);
 
             bool isExistingDahuaVms = IsDahuaVmsType(existingRow[(int)Columns.Type]?.ToString());
             bool isDahuaVmsUpdate = isDahuaVms || isExistingDahuaVms;
@@ -925,7 +989,7 @@ namespace UniversalScanner
             }
 
             if (version > existingVersion)
-                existingRow[(int)Columns.Version] = version;
+                RunScannerDataMutation(() => existingRow[(int)Columns.Version] = version);
 
             if (hasUniviewDiscoveryInfo && !string.IsNullOrWhiteSpace(univiewDiscoveryInfo.Model))
                 UpdateDataRowField(deviceIP, displayDeviceUuid, (int)Columns.Type, univiewDiscoveryInfo.Model, this.currentScanSessionId, discoveredMac);
@@ -933,10 +997,10 @@ namespace UniversalScanner
                 UpdateDataRowField(deviceIP, displayDeviceUuid, (int)Columns.Type, deviceType, this.currentScanSessionId, discoveredMac);
 
             if (hasUniviewDiscoveryInfo && !string.IsNullOrWhiteSpace(univiewDiscoveryInfo.OnvifProfiles))
-                existingRow[(int)Columns.OnvifProfile] = NormalizeOnvifProfileDisplay(univiewDiscoveryInfo.OnvifProfiles);
+                RunScannerDataMutation(() => existingRow[(int)Columns.OnvifProfile] = NormalizeOnvifProfileDisplay(univiewDiscoveryInfo.OnvifProfiles));
 
             if (!string.IsNullOrWhiteSpace(discoveredUniqueId))
-                existingRow[(int)Columns.UniqueId] = displayDeviceUuid;
+                RunScannerDataMutation(() => existingRow[(int)Columns.UniqueId] = displayDeviceUuid);
 
             if (IsDahuaRow(existingRow))
                 ApplyDahuaIdentity(existingRow);
@@ -944,15 +1008,15 @@ namespace UniversalScanner
                 ApplyBoschIdentity(existingRow);
 
             if (IsDahuaSwitchRow(existingRow))
-                existingRow[(int)Columns.Activation] = "N/A (Switch)";
+                RunScannerDataMutation(() => existingRow[(int)Columns.Activation] = "N/A (Switch)");
 
             string existingDahuaStatus = IsDahuaRow(existingRow)
                 ? DeviceSDK.Dahua.DahuaDiscoveryState.GetActivationStatus(deviceIP, existingRow[(int)Columns.UniqueId]?.ToString())
                 : null;
             if (!string.IsNullOrWhiteSpace(existingDahuaStatus))
-                existingRow[(int)Columns.Activation] = existingDahuaStatus;
+                RunScannerDataMutation(() => existingRow[(int)Columns.Activation] = existingDahuaStatus);
 
-            existingRow.EndEdit();
+            RunScannerDataMutation(() => existingRow.EndEdit());
 
             if (!(isDahuaDiscovery && IsDahuaFactoryDefaultIp(deviceIP)))
                 RemoveDuplicateRowsForIpChange("", deviceIP, existingRow);
@@ -1061,11 +1125,16 @@ namespace UniversalScanner
             if (targetRow == null || targetRow.RowState == DataRowState.Deleted)
                 return;
 
-            targetRow[(int)Columns.OnvifProfile] =
-                NormalizeOnvifProfileDisplay(profiles);
+            RunScannerDataMutation(() =>
+                targetRow[(int)Columns.OnvifProfile] = NormalizeOnvifProfileDisplay(profiles));
         }
 
         private void ApplyMacLookupResult(string ip, string uniqueId, string mac, string macVendor, Guid capturedSessionId)
+        {
+            RunScannerDataMutation(() => ApplyMacLookupResultCore(ip, uniqueId, mac, macVendor, capturedSessionId));
+        }
+
+        private void ApplyMacLookupResultCore(string ip, string uniqueId, string mac, string macVendor, Guid capturedSessionId)
         {
             lock (macLookupLock)
             {
@@ -1511,6 +1580,11 @@ namespace UniversalScanner
 
         private void ResetRowToCurrentGenericIdentity(DataRow row, VendorProbeResult detected, string macVendor)
         {
+            RunScannerDataMutation(() => ResetRowToCurrentGenericIdentityCore(row, detected, macVendor));
+        }
+
+        private void ResetRowToCurrentGenericIdentityCore(DataRow row, VendorProbeResult detected, string macVendor)
+        {
             if (row == null)
                 return;
 
@@ -1674,6 +1748,11 @@ namespace UniversalScanner
 
         private void ApplyDahuaIdentity(DataRow row)
         {
+            RunScannerDataMutation(() => ApplyDahuaIdentityCore(row));
+        }
+
+        private void ApplyDahuaIdentityCore(DataRow row)
+        {
             if (row == null)
                 return;
 
@@ -1706,6 +1785,11 @@ namespace UniversalScanner
 
         private void ApplyHoneywellIdentity(DataRow row)
         {
+            RunScannerDataMutation(() => ApplyHoneywellIdentityCore(row));
+        }
+
+        private void ApplyHoneywellIdentityCore(DataRow row)
+        {
             if (row == null)
                 return;
 
@@ -1734,6 +1818,11 @@ namespace UniversalScanner
 
         private void ApplyUniviewIdentity(DataRow row)
         {
+            RunScannerDataMutation(() => ApplyUniviewIdentityCore(row));
+        }
+
+        private void ApplyUniviewIdentityCore(DataRow row)
+        {
             if (row == null)
                 return;
 
@@ -1754,6 +1843,11 @@ namespace UniversalScanner
         }
 
         private void ApplySunellIdentity(DataRow row)
+        {
+            RunScannerDataMutation(() => ApplySunellIdentityCore(row));
+        }
+
+        private void ApplySunellIdentityCore(DataRow row)
         {
             if (row == null)
                 return;
@@ -1780,6 +1874,11 @@ namespace UniversalScanner
         }
 
         private void ApplyBoschIdentity(DataRow row)
+        {
+            RunScannerDataMutation(() => ApplyBoschIdentityCore(row));
+        }
+
+        private void ApplyBoschIdentityCore(DataRow row)
         {
             if (row == null)
                 return;
@@ -1866,7 +1965,21 @@ namespace UniversalScanner
                 string currentValue = row[columnIndex]?.ToString() ?? "";
                 StartupDiagnostics.Increment("redundant_dataRow_updates_skipped"); if (currentValue == value) return;
 
-                row[columnIndex] = value;
+                RunScannerDataMutation(() => row[columnIndex] = value);
+            }
+        }
+
+        private void RunScannerDataMutation(Action update)
+        {
+            bool wasApplyingScannerDataMutation = applyingScannerDataMutation;
+            applyingScannerDataMutation = true;
+            try
+            {
+                update();
+            }
+            finally
+            {
+                applyingScannerDataMutation = wasApplyingScannerDataMutation;
             }
         }
 
@@ -2755,21 +2868,117 @@ namespace UniversalScanner
             }
         }
 
-        private void dataGridView1_RowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
+        private void ApplyDiscoveryRowStyle(DataGridViewRow row)
         {
-            int index = e.RowIndex;
-            if (index < 0 || index >= dataGridView1.Rows.Count)
+            if (row == null || row.IsNewRow || row.DataGridView != dataGridView1)
                 return;
 
-            // Protocol/vendor colors are not status colors and can become nearly
-            // invisible on the dark grid. Keep all device information on the
-            // theme's readable foreground; selection styling remains in control.
-            DataGridViewCellStyle rowStyle = dataGridView1.Rows[index].DefaultCellStyle;
-            rowStyle.ForeColor = AppVisualTheme.Current.IsDark
-                ? Color.FromArgb(229, 231, 235)
-                : AppVisualTheme.Current.TextPrimary;
-            rowStyle.SelectionBackColor = Color.FromArgb(32, 90, 128);
-            rowStyle.SelectionForeColor = Color.White;
+            int index = row.Index;
+            DataGridViewCellStyle rowStyle = row.DefaultCellStyle;
+            AppVisualPalette palette = AppVisualTheme.Current;
+            bool aiOverride = IsAiOverrideRow(row);
+            if (aiOverride)
+            {
+                Color overrideBack = palette.IsDark
+                    ? Color.FromArgb(73, 61, 27)
+                    : Color.FromArgb(255, 248, 220);
+                if (rowStyle.BackColor != overrideBack)
+                    rowStyle.BackColor = overrideBack;
+            }
+            else if (!rowStyle.BackColor.IsEmpty)
+            {
+                rowStyle.BackColor = Color.Empty;
+            }
+
+            Color rowBackColor = aiOverride
+                ? rowStyle.BackColor
+                : (index % 2 == 1 ? palette.SurfaceAlternate : palette.Surface);
+            Color foreColor = palette.IsDark ? Color.FromArgb(229, 231, 235) : palette.TextPrimary;
+
+            string protocol = row.Cells[ColumnNames[(int)Columns.Protocol]].Value?.ToString();
+            if (aiOverride)
+            {
+                Color overrideText = palette.IsDark
+                    ? Color.FromArgb(255, 225, 151)
+                    : Color.FromArgb(84, 57, 0);
+                foreColor = GetReadableProtocolColor(protocol ?? "AI Override", overrideText, palette, rowBackColor);
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(protocol) && protocolFormat.TryGetValue(protocol, out int protocolColor))
+                    foreColor = GetReadableProtocolColor(protocol, Color.FromArgb(255, Color.FromArgb(protocolColor)), palette, rowBackColor);
+            }
+
+            // Only touch styles when their values actually changed. This keeps
+            // painting idempotent while preserving vendor-specific color cues.
+            if (rowStyle.ForeColor != foreColor)
+                rowStyle.ForeColor = foreColor;
+            Color selectionBack = Color.FromArgb(32, 90, 128);
+            if (rowStyle.SelectionBackColor != selectionBack)
+                rowStyle.SelectionBackColor = selectionBack;
+            if (rowStyle.SelectionForeColor != Color.White)
+                rowStyle.SelectionForeColor = Color.White;
+        }
+
+        private bool IsAiOverrideRow(DataGridViewRow row)
+        {
+            string vendor = row.Cells[ColumnNames[(int)Columns.Vendor]].Value?.ToString();
+            return !string.IsNullOrEmpty(vendor) && vendor.EndsWith(BrandOverrideDisplaySuffix, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private Color GetReadableProtocolColor(string protocol, Color source, AppVisualPalette palette, Color background)
+        {
+            string cacheKey = protocol + "|" + source.ToArgb() + "|" + (palette.IsDark ? "D" : "L") + "|" + background.ToArgb();
+            if (readableProtocolColors.TryGetValue(cacheKey, out Color cachedColor))
+                return cachedColor;
+
+            int min = Math.Min(source.R, Math.Min(source.G, source.B));
+            int max = Math.Max(source.R, Math.Max(source.G, source.B));
+            if (max - min < 32)
+            {
+                uint hash = 2166136261;
+                foreach (char character in protocol)
+                    hash = unchecked((hash ^ char.ToUpperInvariant(character)) * 16777619);
+                Color[] fallbackColors = palette.IsDark ? DarkProtocolFallbackColors : LightProtocolFallbackColors;
+                source = fallbackColors[(int)(hash % (uint)fallbackColors.Length)];
+            }
+
+            Color target = palette.IsDark ? Color.White : Color.Black;
+            for (int step = 0; step <= 20 && GetContrastRatio(source, background) < 4.5; step++)
+                source = MixColor(source, target, 0.08f);
+            if (GetContrastRatio(source, background) < 4.5)
+                source = palette.IsDark ? Color.FromArgb(229, 231, 235) : palette.TextPrimary;
+            readableProtocolColors[cacheKey] = source;
+            return source;
+        }
+
+        private static Color MixColor(Color source, Color target, float amount)
+        {
+            return Color.FromArgb(
+                source.A,
+                source.R + (int)((target.R - source.R) * amount),
+                source.G + (int)((target.G - source.G) * amount),
+                source.B + (int)((target.B - source.B) * amount));
+        }
+
+        private static double GetContrastRatio(Color first, Color second)
+        {
+            double firstLuminance = GetRelativeLuminance(first);
+            double secondLuminance = GetRelativeLuminance(second);
+            double lighter = Math.Max(firstLuminance, secondLuminance);
+            double darker = Math.Min(firstLuminance, secondLuminance);
+            return (lighter + 0.05) / (darker + 0.05);
+        }
+
+        private static double GetRelativeLuminance(Color color)
+        {
+            double red = color.R / 255.0;
+            double green = color.G / 255.0;
+            double blue = color.B / 255.0;
+            red = red <= 0.04045 ? red / 12.92 : Math.Pow((red + 0.055) / 1.055, 2.4);
+            green = green <= 0.04045 ? green / 12.92 : Math.Pow((green + 0.055) / 1.055, 2.4);
+            blue = blue <= 0.04045 ? blue / 12.92 : Math.Pow((blue + 0.055) / 1.055, 2.4);
+            return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
         }
 
         private void dataGridView1_ColumnHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
@@ -3322,16 +3531,19 @@ namespace UniversalScanner
                                 DataRow existingRow = FindDeviceRow(ip, mac);
                                 if (existingRow != null)
                                 {
-                                    existingRow[(int)Columns.Vendor] = "Tiandy";
-                                    existingRow[(int)Columns.Protocol] = "Ping";
-                                    existingRow[(int)Columns.Ping] = pingText;
-                                    existingRow[(int)Columns.Activation] = string.IsNullOrWhiteSpace(activation) ? "Unknown" : activation;
-                                    existingRow[(int)Columns.MAC] = mac;
-                                    existingRow[(int)Columns.MACVendor] = macVendor;
-                                    if (!string.IsNullOrWhiteSpace(tiandyUniqueId))
-                                        existingRow[(int)Columns.UniqueId] = NormalizeUniqueIdForDisplay(tiandyUniqueId);
-                                    if (string.IsNullOrWhiteSpace(existingRow[(int)Columns.Type]?.ToString()))
-                                        existingRow[(int)Columns.Type] = "Unknown";
+                                    RunScannerDataMutation(() =>
+                                    {
+                                        existingRow[(int)Columns.Vendor] = "Tiandy";
+                                        existingRow[(int)Columns.Protocol] = "Ping";
+                                        existingRow[(int)Columns.Ping] = pingText;
+                                        existingRow[(int)Columns.Activation] = string.IsNullOrWhiteSpace(activation) ? "Unknown" : activation;
+                                        existingRow[(int)Columns.MAC] = mac;
+                                        existingRow[(int)Columns.MACVendor] = macVendor;
+                                        if (!string.IsNullOrWhiteSpace(tiandyUniqueId))
+                                            existingRow[(int)Columns.UniqueId] = NormalizeUniqueIdForDisplay(tiandyUniqueId);
+                                        if (string.IsNullOrWhiteSpace(existingRow[(int)Columns.Type]?.ToString()))
+                                            existingRow[(int)Columns.Type] = "Unknown";
+                                    });
                                     QueueOnvifProfileLookup(ip, existingRow[(int)Columns.UniqueId]?.ToString());
                                     return;
                                 }
@@ -3696,18 +3908,18 @@ namespace UniversalScanner
                             if (IsStaleHoneywellIdentityForIncomingMac(existingRow, mac, macVendor, detected))
                                 ResetRowToCurrentGenericIdentity(existingRow, detected, macVendor);
 
-                            existingRow[(int)Columns.Ping] = pingText;
+                            RunScannerDataMutation(() => existingRow[(int)Columns.Ping] = pingText);
 
                             if (detectedHoneywell || detectedHikvision || detectedUniview || detectedDahua || detectedSunell || detectedTiandy || detectedBosch)
-                                existingRow[(int)Columns.Activation] = activation;
+                                RunScannerDataMutation(() => existingRow[(int)Columns.Activation] = activation);
                             else if (!IsHikvisionCompatibleRow(existingRow) && !IsUniviewRow(existingRow) && !IsDahuaRow(existingRow) && !IsSunellRow(existingRow) && !IsTiandyRow(existingRow) && !IsBoschRow(existingRow))
-                                existingRow[(int)Columns.Activation] = "N/A";
+                                RunScannerDataMutation(() => existingRow[(int)Columns.Activation] = "N/A");
 
                             if (!string.IsNullOrWhiteSpace(mac))
-                                existingRow[(int)Columns.MAC] = mac;
+                                RunScannerDataMutation(() => existingRow[(int)Columns.MAC] = mac);
 
                             if (!string.IsNullOrWhiteSpace(macVendor))
-                                existingRow[(int)Columns.MACVendor] = macVendor;
+                                RunScannerDataMutation(() => existingRow[(int)Columns.MACVendor] = macVendor);
 
                             if (detectedHoneywell)
                                 ApplyHoneywellIdentity(existingRow);
@@ -3719,8 +3931,11 @@ namespace UniversalScanner
                                 ApplySunellIdentity(existingRow);
                             else if (detectedTiandy && (IsGenericDiscoveryRow(existingRow) || IsTiandyRow(existingRow)))
                             {
-                                existingRow[(int)Columns.Vendor] = "Tiandy";
-                                existingRow[(int)Columns.Protocol] = "Ping";
+                                RunScannerDataMutation(() =>
+                                {
+                                    existingRow[(int)Columns.Vendor] = "Tiandy";
+                                    existingRow[(int)Columns.Protocol] = "Ping";
+                                });
                             }
                             else if (detectedBosch && (IsGenericDiscoveryRow(existingRow) || IsBoschRow(existingRow)))
                                 ApplyBoschIdentity(existingRow);
@@ -3734,16 +3949,16 @@ namespace UniversalScanner
                                 displayVendor != "Unknown" &&
                                 (string.IsNullOrWhiteSpace(currentVendor) || currentVendor == "Unknown" || IsGenericWsDiscoveryText(currentVendor)))
                             {
-                                existingRow[(int)Columns.Vendor] = displayVendor;
+                                RunScannerDataMutation(() => existingRow[(int)Columns.Vendor] = displayVendor);
                             }
 
                             if (!preserveExistingIdentity && detectedHoneywell)
-                                existingRow[(int)Columns.Protocol] = "Honeywell";
+                                RunScannerDataMutation(() => existingRow[(int)Columns.Protocol] = "Honeywell");
                             else if (!preserveExistingIdentity && !detectedUniview && !detectedDahua && !detectedSunell && !detectedTiandy && !string.IsNullOrWhiteSpace(detected.Protocol) && detected.Protocol != "Ping")
-                                existingRow[(int)Columns.Protocol] = detected.Protocol;
+                                RunScannerDataMutation(() => existingRow[(int)Columns.Protocol] = detected.Protocol);
 
                             if (!preserveExistingIdentity && !detectedUniview && !detectedDahua && !detectedSunell && !detectedTiandy && !string.IsNullOrWhiteSpace(detected.Type) && detected.Type != "Unknown")
-                                existingRow[(int)Columns.Type] = detected.Type;
+                                RunScannerDataMutation(() => existingRow[(int)Columns.Type] = detected.Type);
 
                             QueueOnvifProfileLookup(ip, existingRow[(int)Columns.UniqueId]?.ToString());
 
@@ -3850,6 +4065,7 @@ namespace UniversalScanner
 
         private async Task ScanSelectedSubnetAsync(CancellationToken cancellationToken)
         {
+            ResetAdvancedAutoLearnTotals();
             currentScanSessionId = Guid.NewGuid();
 
             PrepareSubnetScanUi();
@@ -3876,6 +4092,7 @@ namespace UniversalScanner
 
         private async Task ScanAllLocalSubnetsAsync(CancellationToken cancellationToken)
         {
+            ResetAdvancedAutoLearnTotals();
             currentScanSessionId = Guid.NewGuid();
 
             PrepareSubnetScanUi();
@@ -7277,13 +7494,14 @@ namespace UniversalScanner
                 column.DefaultCellStyle.SelectionForeColor = Color.White;
             }
 
-            // Rows can already exist when the user changes themes. Clear row
-            // overrides previously installed by RowPrePaint/vendor formatting.
+            // Rows can already exist when the user changes themes. Reapply
+            // their current brand/override styles using the new palette.
             foreach (DataGridViewRow row in dataGridView1.Rows)
             {
                 row.DefaultCellStyle.ForeColor = normalText;
                 row.DefaultCellStyle.SelectionBackColor = selectionBack;
                 row.DefaultCellStyle.SelectionForeColor = Color.White;
+                ApplyDiscoveryRowStyle(row);
             }
             dataGridView1.RowTemplate.Height = 30;
             dataGridView1.ColumnHeadersHeight = 34;

@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using UniversalScanner.AI;
 
@@ -24,8 +27,19 @@ namespace UniversalScanner
         private Button saveSelectedFingerprintButton;
         private long selectedFingerprintObservationId;
         private string selectedBrandOverride;
-        private bool advancedOverrideRefreshQueued;
-        private bool advancedAutoLearnQueued;
+        private readonly HashSet<DataGridViewRow> pendingAdvancedRows = new HashSet<DataGridViewRow>();
+        private readonly HashSet<DataGridViewRow> pendingBrandOverrideRows = new HashSet<DataGridViewRow>();
+        private bool advancedRowsRefreshQueued;
+        private bool advancedRowsRefreshProcessing;
+        private readonly object aiKnowledgeBaseWriteLock = new object();
+        private bool applyingQueuedBrandOverride;
+        private int advancedLearnedTotal;
+        private int advancedUpdatedTotal;
+        private int advancedSkippedTotal;
+        private int advancedAutoLearnGeneration;
+        private bool advancedAutoLearnSummaryVisible;
+        private bool advancedExplicitSaveStatus;
+        private DateTime advancedExplicitSaveStatusUtc;
         private const string BrandOverrideDisplaySuffix = " [AI Override]";
         private readonly KnowledgeBase aiKnowledgeBase = new KnowledgeBase();
         private readonly DeviceClassifier aiDeviceClassifier = new DeviceClassifier();
@@ -309,6 +323,7 @@ namespace UniversalScanner
         private void UpdateAiKnowledgeDatabaseStatus()
         {
             bool loaded = aiKnowledgeBase.IsLoaded;
+            ResetAdvancedAutoLearnTotals();
 
             UpdateAdvancedToolsAvailability();
 
@@ -319,9 +334,46 @@ namespace UniversalScanner
                     : "AI knowledge database: not loaded";
             }
 
-            ApplyAiBrandOverridesToVisibleRows();
-            QueueAutoLearnVisibleRows();
+            QueueAllAdvancedRowsRefresh();
             UpdateAdvancedSelectedDevicePanel();
+        }
+
+        private void ResetAdvancedAutoLearnTotals()
+        {
+            advancedLearnedTotal = 0;
+            advancedUpdatedTotal = 0;
+            advancedSkippedTotal = 0;
+            advancedAutoLearnGeneration++;
+            pendingAdvancedRows.Clear();
+            pendingBrandOverrideRows.Clear();
+            if (advancedAutoLearnSummaryVisible && advancedSaveStatusLabel != null)
+                advancedSaveStatusLabel.Text = "";
+            advancedAutoLearnSummaryVisible = false;
+            advancedExplicitSaveStatus = false;
+        }
+
+        private void SetAdvancedSaveStatus(string message)
+        {
+            if (advancedSaveStatusLabel == null)
+                return;
+
+            advancedSaveStatusLabel.Text = message;
+            advancedExplicitSaveStatus = true;
+            advancedExplicitSaveStatusUtc = DateTime.UtcNow;
+            advancedAutoLearnSummaryVisible = false;
+        }
+
+        private void SetAutoLearnSummary(string message)
+        {
+            if (advancedSaveStatusLabel == null)
+                return;
+
+            if (advancedExplicitSaveStatus && DateTime.UtcNow - advancedExplicitSaveStatusUtc < TimeSpan.FromSeconds(5))
+                return;
+
+            advancedSaveStatusLabel.Text = message;
+            advancedExplicitSaveStatus = false;
+            advancedAutoLearnSummaryVisible = true;
         }
 
         private void LoadOrCreateDefaultAiKnowledgeDatabase()
@@ -381,7 +433,11 @@ namespace UniversalScanner
                 advancedSelectedDeviceLabel.Text = "Selected device: none";
                 advancedConfidenceLabel.Text = "Classification confidence: 0%";
                 if (advancedSaveStatusLabel != null)
+                {
                     advancedSaveStatusLabel.Text = "Select one device to save its fingerprint.";
+                    advancedExplicitSaveStatus = false;
+                    advancedAutoLearnSummaryVisible = false;
+                }
                 UpdateAdvancedToolsAvailability();
                 return;
             }
@@ -421,11 +477,10 @@ namespace UniversalScanner
             try
             {
                 DeviceFingerprint fingerprint = BuildSelectedDeviceFingerprint(selectedRow);
-                long id = aiKnowledgeBase.SaveFingerprintObservation(fingerprint);
+                long id = SaveFingerprintObservationSafely(fingerprint);
                 selectedFingerprintObservationId = id;
 
-                if (advancedSaveStatusLabel != null)
-                    advancedSaveStatusLabel.Text = "Fingerprint saved to DB as observation #" + id + ".";
+                SetAdvancedSaveStatus("Fingerprint saved to DB as observation #" + id + ".");
 
                 UpdateAdvancedToolsAvailability();
                 _ = ShowStatusAsync("Selected device fingerprint saved.", 2500);
@@ -479,15 +534,15 @@ namespace UniversalScanner
 
             if (!aiKnowledgeBase.IsLoaded)
             {
-                advancedSaveStatusLabel.Text = "Load the AI knowledge database before saving fingerprints.";
+                SetAdvancedSaveStatus("Load the AI knowledge database before saving fingerprints.");
                 return;
             }
 
             long existingId = aiKnowledgeBase.FindLatestFingerprintObservationId(fingerprint);
             selectedFingerprintObservationId = existingId;
-            advancedSaveStatusLabel.Text = existingId > 0
+            SetAdvancedSaveStatus(existingId > 0
                 ? "Fingerprint already saved in DB as observation #" + existingId + "."
-                : "Fingerprint not saved yet.";
+                : "Fingerprint not saved yet.");
         }
 
         private bool AutoLearnFingerprintIfReady(DeviceFingerprint fingerprint)
@@ -500,22 +555,21 @@ namespace UniversalScanner
 
             try
             {
-                FingerprintPersistenceResult result = aiKnowledgeBase.SaveOrUpdateFingerprintObservation(fingerprint);
+                FingerprintPersistenceResult result = SaveOrUpdateFingerprintObservationSafely(fingerprint);
                 selectedFingerprintObservationId = result.ObservationId;
 
                 if (advancedSaveStatusLabel != null)
                 {
-                    advancedSaveStatusLabel.Text = result.Created
+                    SetAdvancedSaveStatus(result.Created
                         ? BuildAutoLearnStatus("AI learned this fingerprint", result.ObservationId)
-                        : BuildAutoLearnStatus("AI updated saved fingerprint", result.ObservationId);
+                        : BuildAutoLearnStatus("AI updated saved fingerprint", result.ObservationId));
                 }
 
                 return true;
             }
             catch (Exception ex)
             {
-                if (advancedSaveStatusLabel != null)
-                    advancedSaveStatusLabel.Text = "AI could not update the knowledge DB: " + ex.Message;
+                SetAdvancedSaveStatus("AI could not update the knowledge DB: " + ex.Message);
 
                 return false;
             }
@@ -564,84 +618,113 @@ namespace UniversalScanner
 
             dataGridView1.RowsAdded += (sender, e) =>
             {
-                QueueApplyAiBrandOverridesToVisibleRows();
-                QueueAutoLearnVisibleRows();
+                int end = Math.Min(dataGridView1.Rows.Count, e.RowIndex + e.RowCount);
+                for (int index = Math.Max(0, e.RowIndex); index < end; index++)
+                    QueueAdvancedRowRefresh(dataGridView1.Rows[index], true);
             };
 
-            dataGridView1.CellValueChanged += (sender, e) => QueueAutoLearnVisibleRows();
         }
 
-        private void QueueApplyAiBrandOverridesToVisibleRows()
+        private void QueueAdvancedRowRefresh(DataGridViewRow row, bool applyBrandOverride)
         {
-            if (!aiKnowledgeBase.IsLoaded || dataGridView1 == null || advancedOverrideRefreshQueued)
+            if (applyingQueuedBrandOverride || !aiKnowledgeBase.IsLoaded || dataGridView1 == null || row == null || row.IsNewRow)
                 return;
-
             if (!dataGridView1.IsHandleCreated || dataGridView1.IsDisposed)
                 return;
 
-            advancedOverrideRefreshQueued = true;
-            BeginInvoke(new Action(() =>
-            {
-                advancedOverrideRefreshQueued = false;
-                ApplyAiBrandOverridesToVisibleRows();
-            }));
+            pendingAdvancedRows.Add(row);
+            if (applyBrandOverride)
+                pendingBrandOverrideRows.Add(row);
+            ScheduleAdvancedRowsRefresh();
         }
 
-        private void ApplyAiBrandOverridesToVisibleRows()
+        private void QueueAllAdvancedRowsRefresh()
         {
-            if (!aiKnowledgeBase.IsLoaded || dataGridView1 == null)
+            if (!aiKnowledgeBase.IsLoaded || dataGridView1 == null || !dataGridView1.IsHandleCreated || dataGridView1.IsDisposed)
                 return;
 
             foreach (DataGridViewRow row in dataGridView1.Rows)
-                ApplyAiBrandOverrideToActionRow(row);
-
-            dataGridView1.Refresh();
-        }
-
-        private void QueueAutoLearnVisibleRows()
-        {
-            if (!aiKnowledgeBase.IsLoaded || dataGridView1 == null || advancedAutoLearnQueued)
-                return;
-
-            if (!dataGridView1.IsHandleCreated || dataGridView1.IsDisposed)
-                return;
-
-            advancedAutoLearnQueued = true;
-            BeginInvoke(new Action(() =>
             {
-                advancedAutoLearnQueued = false;
-                AutoLearnVisibleRows();
-            }));
+                if (row != null && !row.IsNewRow)
+                {
+                    pendingAdvancedRows.Add(row);
+                    pendingBrandOverrideRows.Add(row);
+                }
+            }
+            ScheduleAdvancedRowsRefresh();
         }
 
-        private void AutoLearnVisibleRows()
+        private void ScheduleAdvancedRowsRefresh()
         {
-            if (!aiKnowledgeBase.IsLoaded || dataGridView1 == null)
+            if (advancedRowsRefreshQueued || advancedRowsRefreshProcessing ||
+                dataGridView1 == null || dataGridView1.IsDisposed || !dataGridView1.IsHandleCreated)
                 return;
 
+            advancedRowsRefreshQueued = true;
+            try
+            {
+                BeginInvoke(new Action(ProcessPendingAdvancedRows));
+            }
+            catch (InvalidOperationException)
+            {
+                advancedRowsRefreshQueued = false;
+            }
+        }
+
+        private async void ProcessPendingAdvancedRows()
+        {
+            advancedRowsRefreshQueued = false;
+            if (advancedRowsRefreshProcessing)
+                return;
+            if (!aiKnowledgeBase.IsLoaded || dataGridView1 == null || dataGridView1.IsDisposed)
+            {
+                pendingAdvancedRows.Clear();
+                pendingBrandOverrideRows.Clear();
+                return;
+            }
+
+            advancedRowsRefreshProcessing = true;
+            try
+            {
+            int batchGeneration = advancedAutoLearnGeneration;
+            DataGridViewRow[] rows = pendingAdvancedRows.Take(32).ToArray();
+            foreach (DataGridViewRow row in rows)
+                pendingAdvancedRows.Remove(row);
             int learned = 0;
             int updated = 0;
             int skipped = 0;
-
-            foreach (DataGridViewRow row in dataGridView1.Rows)
+            List<DeviceFingerprint> fingerprints = new List<DeviceFingerprint>();
+            foreach (DataGridViewRow row in rows)
             {
-                if (row == null || row.IsNewRow)
-                    continue;
-
-                DeviceFingerprint fingerprint = BuildSelectedDeviceFingerprint(row);
-                if (!HasLearnableFingerprintIdentity(fingerprint))
+                try
                 {
-                    skipped++;
+                if (row == null || row.IsNewRow || row.DataGridView != dataGridView1)
+                {
+                    pendingBrandOverrideRows.Remove(row);
                     continue;
                 }
 
-                try
+                if (pendingBrandOverrideRows.Remove(row))
                 {
-                    FingerprintPersistenceResult result = aiKnowledgeBase.SaveOrUpdateFingerprintObservation(fingerprint);
-                    if (result.Created)
-                        learned++;
-                    else
-                        updated++;
+                    applyingQueuedBrandOverride = true;
+                    try
+                    {
+                        ApplyAiBrandOverrideToActionRow(row);
+                    }
+                    catch
+                    {
+                        skipped++;
+                    }
+                    finally
+                    {
+                        applyingQueuedBrandOverride = false;
+                    }
+                }
+                DeviceFingerprint fingerprint = BuildSelectedDeviceFingerprint(row);
+                if (HasLearnableFingerprintIdentity(fingerprint))
+                    fingerprints.Add(fingerprint);
+                else
+                    skipped++;
                 }
                 catch
                 {
@@ -649,22 +732,110 @@ namespace UniversalScanner
                 }
             }
 
-            if (advancedViewToolStripMenuItem != null &&
-                advancedViewToolStripMenuItem.Checked &&
-                advancedSaveStatusLabel != null &&
-                learned + updated > 0)
+            if (fingerprints.Count > 0)
             {
-                advancedSaveStatusLabel.Text =
-                    "AI auto-learned scan rows. New: " +
-                    learned +
-                    ", updated: " +
-                    updated +
-                    (skipped > 0 ? ", skipped: " + skipped : "") +
-                    ".";
+                int[] persistenceCounts = await Task.Run(() =>
+                {
+                    int created = 0;
+                    int changed = 0;
+                    int failed = 0;
+                    foreach (DeviceFingerprint fingerprint in fingerprints)
+                    {
+                        try
+                        {
+                            if (!aiKnowledgeBase.IsLoaded)
+                            {
+                                failed++;
+                                continue;
+                            }
+
+                            FingerprintPersistenceResult result = SaveOrUpdateFingerprintObservationSafely(fingerprint);
+                            if (result.Created)
+                                created++;
+                            else
+                                changed++;
+                        }
+                        catch
+                        {
+                            failed++;
+                        }
+                    }
+                    return new[] { created, changed, failed };
+                });
+                learned += persistenceCounts[0];
+                updated += persistenceCounts[1];
+                skipped += persistenceCounts[2];
             }
 
-            RefreshSelectedFingerprintSavedState();
-            UpdateAdvancedToolsAvailability();
+            if (batchGeneration == advancedAutoLearnGeneration)
+            {
+                advancedLearnedTotal += learned;
+                advancedUpdatedTotal += updated;
+                advancedSkippedTotal += skipped;
+            }
+            else
+            {
+                learned = 0;
+                updated = 0;
+                skipped = 0;
+            }
+            try
+            {
+            if (learned + updated > 0 &&
+                advancedViewToolStripMenuItem != null &&
+                    advancedViewToolStripMenuItem.Checked &&
+                    advancedSaveStatusLabel != null)
+                {
+                    SetAutoLearnSummary(
+                        "AI auto-learned scan rows. New: " + advancedLearnedTotal +
+                        ", updated: " + advancedUpdatedTotal +
+                        (advancedSkippedTotal > 0 ? ", skipped: " + advancedSkippedTotal : "") + ".");
+                }
+
+                if (rows.Length > 0)
+                    dataGridView1.Invalidate();
+                RefreshSelectedFingerprintSavedState();
+                UpdateAdvancedToolsAvailability();
+            }
+            catch (Exception ex)
+            {
+                Logger.getInstance().WriteLine(Logger.DebugLevel.Warn, "Advanced row refresh UI update failed: " + ex.Message);
+            }
+            }
+            catch (Exception ex)
+            {
+                Logger.getInstance().WriteLine(Logger.DebugLevel.Warn, "Advanced row batch failed: " + ex.Message);
+            }
+            finally
+            {
+                advancedRowsRefreshProcessing = false;
+                if (pendingAdvancedRows.Count > 0 && !advancedRowsRefreshQueued)
+                    ScheduleAdvancedRowsRefresh();
+            }
+        }
+
+        private FingerprintPersistenceResult SaveOrUpdateFingerprintObservationSafely(DeviceFingerprint fingerprint)
+        {
+            lock (aiKnowledgeBaseWriteLock)
+                return aiKnowledgeBase.SaveOrUpdateFingerprintObservation(fingerprint);
+        }
+
+        private long SaveFingerprintObservationSafely(DeviceFingerprint fingerprint)
+        {
+            lock (aiKnowledgeBaseWriteLock)
+                return aiKnowledgeBase.SaveFingerprintObservation(fingerprint);
+        }
+
+        private void SaveBrandOverrideSafely(DeviceFingerprint fingerprint, string brand)
+        {
+            lock (aiKnowledgeBaseWriteLock)
+                aiKnowledgeBase.SaveBrandOverride(fingerprint, brand, fingerprint.Vendor, fingerprint.Protocol);
+        }
+
+        private void ClearBrandOverrideSafely(DeviceFingerprint fingerprint)
+        {
+            lock (aiKnowledgeBaseWriteLock)
+                aiKnowledgeBase.ClearBrandOverride(fingerprint);
         }
 
         private void RefreshSelectedFingerprintSavedState()
@@ -717,12 +888,11 @@ namespace UniversalScanner
             try
             {
                 DeviceFingerprint fingerprint = BuildSelectedDeviceFingerprint(selectedRow);
-                aiKnowledgeBase.SaveBrandOverride(fingerprint, brand, fingerprint.Vendor, fingerprint.Protocol);
+                SaveBrandOverrideSafely(fingerprint, brand);
                 ApplyBrandOverrideToRowAndFingerprint(selectedRow, fingerprint, brand);
-                aiKnowledgeBase.SaveOrUpdateFingerprintObservation(fingerprint);
+                SaveOrUpdateFingerprintObservationSafely(fingerprint);
 
-                if (advancedSaveStatusLabel != null)
-                    advancedSaveStatusLabel.Text = "AI brand override saved: treat this device as " + brand + ".";
+                SetAdvancedSaveStatus("AI brand override saved: treat this device as " + brand + ".");
 
                 UpdateAdvancedSelectedDevicePanel();
                 _ = ShowStatusAsync("AI will treat this device as " + brand + ".", 3000);
@@ -747,12 +917,11 @@ namespace UniversalScanner
             {
                 DeviceFingerprint fingerprint = BuildSelectedDeviceFingerprint(selectedRow);
                 DeviceBrandOverride brandOverride = aiKnowledgeBase.GetBrandOverride(fingerprint);
-                aiKnowledgeBase.ClearBrandOverride(fingerprint);
+                ClearBrandOverrideSafely(fingerprint);
                 RestoreRowBrandAfterClearingOverride(selectedRow, brandOverride);
-                aiKnowledgeBase.SaveOrUpdateFingerprintObservation(BuildSelectedDeviceFingerprint(selectedRow));
+                SaveOrUpdateFingerprintObservationSafely(BuildSelectedDeviceFingerprint(selectedRow));
 
-                if (advancedSaveStatusLabel != null)
-                    advancedSaveStatusLabel.Text = "AI brand override cleared for this device.";
+                SetAdvancedSaveStatus("AI brand override cleared for this device.");
 
                 UpdateAdvancedSelectedDevicePanel();
                 _ = ShowStatusAsync("AI brand override cleared.", 2500);
@@ -776,12 +945,21 @@ namespace UniversalScanner
             if (string.IsNullOrWhiteSpace(normalizedBrand))
                 normalizedBrand = brand.Trim();
 
-            SetCellText(row, Columns.Vendor, normalizedBrand + BrandOverrideDisplaySuffix);
-            SetCellText(row, Columns.Protocol, normalizedBrand);
-            MarkBrandOverrideRow(row, normalizedBrand);
-            fingerprint.Vendor = normalizedBrand;
-            fingerprint.Protocol = normalizedBrand;
-            fingerprint.AddSignal("brand_override", normalizedBrand);
+            bool wasApplyingQueuedBrandOverride = applyingQueuedBrandOverride;
+            applyingQueuedBrandOverride = true;
+            try
+            {
+                SetCellText(row, Columns.Vendor, normalizedBrand + BrandOverrideDisplaySuffix);
+                SetCellText(row, Columns.Protocol, normalizedBrand);
+                MarkBrandOverrideRow(row, normalizedBrand);
+                fingerprint.Vendor = normalizedBrand;
+                fingerprint.Protocol = normalizedBrand;
+                fingerprint.AddSignal("brand_override", normalizedBrand);
+            }
+            finally
+            {
+                applyingQueuedBrandOverride = wasApplyingQueuedBrandOverride;
+            }
         }
 
         private void MarkBrandOverrideRow(DataGridViewRow row, string brand)
@@ -810,8 +988,8 @@ namespace UniversalScanner
             if (vendor.EndsWith(BrandOverrideDisplaySuffix, StringComparison.OrdinalIgnoreCase))
                 SetCellText(row, Columns.Vendor, vendor.Substring(0, vendor.Length - BrandOverrideDisplaySuffix.Length));
 
-            row.DefaultCellStyle.BackColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.BackColor : AppVisualTheme.Current.Surface;
-            row.DefaultCellStyle.ForeColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.ForeColor : AppVisualTheme.Current.TextPrimary;
+            row.DefaultCellStyle.BackColor = Color.Empty;
+            ApplyDiscoveryRowStyle(row);
             SetCellToolTip(row, Columns.Vendor, "");
             SetCellToolTip(row, Columns.Protocol, "");
         }
@@ -849,8 +1027,8 @@ namespace UniversalScanner
                 }
             }
 
-            row.DefaultCellStyle.BackColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.BackColor : AppVisualTheme.Current.Surface;
-            row.DefaultCellStyle.ForeColor = dataGridView1 != null ? dataGridView1.DefaultCellStyle.ForeColor : AppVisualTheme.Current.TextPrimary;
+            row.DefaultCellStyle.BackColor = Color.Empty;
+            ApplyDiscoveryRowStyle(row);
             SetCellToolTip(row, Columns.Vendor, "");
             SetCellToolTip(row, Columns.Protocol, "");
         }

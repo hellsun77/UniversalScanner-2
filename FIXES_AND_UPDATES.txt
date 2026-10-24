@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-24] fix: restore readable brand colors and speed up large discovery lists; advance version to 2.8
+- Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/UniversalScanner.AdvancedView.cs, UniversalScanner/UniversalScanner.Designer.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
+- Summary: Restored recognizable protocol brand colors with theme-aware contrast adjustment and stable fallback colors for neutral source colors. Removed per-paint style mutation and applies row styling when rows are added or bound data changes. Theme refresh restores readable AI-override text and backgrounds. Reworked AI override and auto-learn updates into 32-row UI batches, re-applies overrides after scanner enrichment, marshals binding notifications to the UI thread, and persists learned fingerprints off the UI thread. Advanced the synchronized application version from 2.7 to 2.8.
+- Verification: Final Release x86 rebuild passed with 0 errors and 4 pre-existing warnings. Three non-mutating Deep Code reviews were completed; the final pass verified scanner event ordering, thread-local mutation attribution, async shutdown guards, serialized database writes, and the theme/brand contrast path. `git diff --check` passed. The contrast sweep of representative protocol colors and both row backgrounds passed at 4.50:1 or higher in light and dark themes; white on the selected blue passed at 7.41:1. A live 481-device timed run was not performed, so the responsiveness improvement is based on eliminating repeated whole-grid work and moving batched persistence off the UI thread, not a measured runtime benchmark.
+- Commit: 64ead49ea88bba79e34d03c0d6459846955b85ff
+
 [2026-10-24] fix: restore readable discovery grid text in dark mode and advance version to 2.7
 - Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
 - Summary: Removed protocol/vendor color overrides from discovery row painting and explicitly applied theme-aware text colors to headers, base/alternating rows, every column, existing rows, and selected rows. Dark mode uses #E5E7EB normal text; selection uses #205A80 with white text. Theme refresh restyles existing rows, and repaint reasserts the active palette so scan updates and sorting cannot restore protocol colors. Advanced the synchronized application version from 2.6 to 2.7.
