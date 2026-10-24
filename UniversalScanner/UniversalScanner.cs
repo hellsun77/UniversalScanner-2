@@ -2567,7 +2567,7 @@ namespace UniversalScanner
             using (ModernAboutDialog aboutDialog = new ModernAboutDialog(
                 versionInfo.ProductName,
                 versionInfo.FileMajorPart + "." + versionInfo.FileMinorPart,
-                "October 22, 2026",
+                "October 24, 2026",
                 versionInfo.LegalCopyright))
             {
                 aboutDialog.ShowDialog(this);
@@ -2758,13 +2758,18 @@ namespace UniversalScanner
         private void dataGridView1_RowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
         {
             int index = e.RowIndex;
+            if (index < 0 || index >= dataGridView1.Rows.Count)
+                return;
 
-            string protocol = dataGridView1.Rows[index].Cells[(int)Columns.Protocol].Value?.ToString();
-
-            if (protocol != null && protocolFormat.ContainsKey(protocol))
-            {
-                dataGridView1.Rows[index].DefaultCellStyle.ForeColor = Color.FromArgb(protocolFormat[protocol]);
-            }
+            // Protocol/vendor colors are not status colors and can become nearly
+            // invisible on the dark grid. Keep all device information on the
+            // theme's readable foreground; selection styling remains in control.
+            DataGridViewCellStyle rowStyle = dataGridView1.Rows[index].DefaultCellStyle;
+            rowStyle.ForeColor = AppVisualTheme.Current.IsDark
+                ? Color.FromArgb(229, 231, 235)
+                : AppVisualTheme.Current.TextPrimary;
+            rowStyle.SelectionBackColor = Color.FromArgb(32, 90, 128);
+            rowStyle.SelectionForeColor = Color.White;
         }
 
         private void dataGridView1_ColumnHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
@@ -7241,25 +7246,45 @@ namespace UniversalScanner
         private void StyleMainGrid()
         {
             AppVisualPalette palette = AppVisualTheme.Current;
+            Color normalText = palette.IsDark ? Color.FromArgb(229, 231, 235) : palette.TextPrimary;
+            Color selectionBack = Color.FromArgb(32, 90, 128);
             dataGridView1.EnableHeadersVisualStyles = false;
             dataGridView1.BackgroundColor = palette.Surface;
             dataGridView1.GridColor = palette.GridLine;
             dataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
             dataGridView1.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
             dataGridView1.ColumnHeadersDefaultCellStyle.BackColor = palette.GridHeader;
-            dataGridView1.ColumnHeadersDefaultCellStyle.ForeColor = palette.TextPrimary;
+            dataGridView1.ColumnHeadersDefaultCellStyle.ForeColor = normalText;
             dataGridView1.ColumnHeadersDefaultCellStyle.Font = AppVisualTheme.GridHeaderFont;
             dataGridView1.ColumnHeadersDefaultCellStyle.SelectionBackColor = palette.GridHeader;
-            dataGridView1.ColumnHeadersDefaultCellStyle.SelectionForeColor = palette.TextPrimary;
+            dataGridView1.ColumnHeadersDefaultCellStyle.SelectionForeColor = normalText;
             dataGridView1.ColumnHeadersDefaultCellStyle.Padding = new Padding(6, 0, 6, 0);
             dataGridView1.DefaultCellStyle.BackColor = palette.Surface;
-            dataGridView1.DefaultCellStyle.ForeColor = palette.TextPrimary;
-            dataGridView1.DefaultCellStyle.SelectionBackColor = palette.Selection;
-            dataGridView1.DefaultCellStyle.SelectionForeColor = palette.SelectionText;
+            dataGridView1.DefaultCellStyle.ForeColor = normalText;
+            dataGridView1.DefaultCellStyle.SelectionBackColor = selectionBack;
+            dataGridView1.DefaultCellStyle.SelectionForeColor = Color.White;
             dataGridView1.DefaultCellStyle.Font = AppVisualTheme.GridFont;
             dataGridView1.DefaultCellStyle.Padding = new Padding(5, 0, 5, 0);
             dataGridView1.AlternatingRowsDefaultCellStyle.BackColor = palette.SurfaceAlternate;
-            dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = palette.TextPrimary;
+            dataGridView1.AlternatingRowsDefaultCellStyle.ForeColor = normalText;
+            dataGridView1.RowsDefaultCellStyle.ForeColor = normalText;
+            dataGridView1.RowsDefaultCellStyle.SelectionBackColor = selectionBack;
+            dataGridView1.RowsDefaultCellStyle.SelectionForeColor = Color.White;
+            foreach (DataGridViewColumn column in dataGridView1.Columns)
+            {
+                column.DefaultCellStyle.ForeColor = normalText;
+                column.DefaultCellStyle.SelectionBackColor = selectionBack;
+                column.DefaultCellStyle.SelectionForeColor = Color.White;
+            }
+
+            // Rows can already exist when the user changes themes. Clear row
+            // overrides previously installed by RowPrePaint/vendor formatting.
+            foreach (DataGridViewRow row in dataGridView1.Rows)
+            {
+                row.DefaultCellStyle.ForeColor = normalText;
+                row.DefaultCellStyle.SelectionBackColor = selectionBack;
+                row.DefaultCellStyle.SelectionForeColor = Color.White;
+            }
             dataGridView1.RowTemplate.Height = 30;
             dataGridView1.ColumnHeadersHeight = 34;
             dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;

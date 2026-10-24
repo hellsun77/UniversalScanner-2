@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-24] fix: restore readable discovery grid text in dark mode and advance version to 2.7
+- Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
+- Summary: Removed protocol/vendor color overrides from discovery row painting and explicitly applied theme-aware text colors to headers, base/alternating rows, every column, existing rows, and selected rows. Dark mode uses #E5E7EB normal text; selection uses #205A80 with white text. Theme refresh restyles existing rows, and repaint reasserts the active palette so scan updates and sorting cannot restore protocol colors. Advanced the synchronized application version from 2.6 to 2.7.
+- Verification: Release x86 rebuild passed with 0 errors and 4 pre-existing warnings. Reviewed both light and dark palette paths, existing-row refresh, selection, repaint, and scan/status update call sites. Live visual theme inspection was attempted, but the desktop capture channel timed out. Deep Code plan review was invoked but returned no review output; manual diff review and `git diff --check` passed.
+- Commit: c3fc670
+
 [2026-10-22] fix: improve About icon spacing and advance version to 2.6
 - Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
 - Summary: Widened the existing About button slightly, kept its information icon anchored left, and shifted the About caption farther right for clearer visual separation in light and dark themes without changing its command or event handler. Advanced the synchronized application version from 2.5 to 2.6.
