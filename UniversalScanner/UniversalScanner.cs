@@ -64,6 +64,7 @@ namespace UniversalScanner
         private Dictionary<string, int> protocolFormat = new Dictionary<string, int>();
         [ThreadStatic]
         private static bool applyingScannerDataMutation;
+        private int deviceCountUpdateQueued;
         private readonly Dictionary<string, Color> readableProtocolColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
         private static readonly Color[] DarkProtocolFallbackColors = {
             Color.FromArgb(105, 190, 255), Color.FromArgb(105, 220, 155),
@@ -200,7 +201,7 @@ namespace UniversalScanner
             binding.DataSource = foundDeviceList;
             binding.ListChanged += (s, ev) =>
             {
-                UpdateDeviceCountLabel();
+                QueueDeviceCountLabelUpdate();
                 if (ev.ListChangedType != System.ComponentModel.ListChangedType.ItemChanged)
                     return;
 
@@ -238,7 +239,7 @@ namespace UniversalScanner
             dataGridView1.SelectionChanged += (s, ev) =>
             {
                 UpdateSelectedCountLabel();
-                UpdateAdvancedSelectedDevicePanel();
+                QueueAdvancedSelectedDevicePanelRefresh();
             };
             dataGridView1.RowsAdded += (s, ev) =>
             {
@@ -6938,6 +6939,28 @@ namespace UniversalScanner
             deviceCountLabel.Text = visibleCount == totalCount
                 ? "Discovered devices: " + totalCount
                 : "Discovered devices: " + visibleCount + " of " + totalCount;
+        }
+
+        private void QueueDeviceCountLabelUpdate()
+        {
+            if (IsDisposed || !IsHandleCreated)
+                return;
+            if (Interlocked.Exchange(ref deviceCountUpdateQueued, 1) != 0)
+                return;
+
+            try
+            {
+                BeginInvoke(new Action(() =>
+                {
+                    Interlocked.Exchange(ref deviceCountUpdateQueued, 0);
+                    if (!IsDisposed)
+                        UpdateDeviceCountLabel();
+                }));
+            }
+            catch (InvalidOperationException)
+            {
+                Interlocked.Exchange(ref deviceCountUpdateQueued, 0);
+            }
         }
 
         private void UpdateSelectedCountLabel()

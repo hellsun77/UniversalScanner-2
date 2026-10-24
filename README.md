@@ -1,6 +1,6 @@
 # UniversalScanner 2
 
-**Version: 2.8**
+**Version: 2.9**
 
 UniversalScanner 2 is a Windows Forms network discovery and device-management tool for IP cameras and other network devices. The core of this application is built from the original UniversalScanner project at https://github.com/julienblitte/UniversalScanner and targets .NET Framework 4.8.
 

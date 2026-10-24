@@ -18,6 +18,12 @@ Format
 Entries
 -------
 
+[2026-10-24] fix: coalesce discovery UI updates to prevent large-list startup hangs; advance version to 2.9
+- Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/UniversalScanner.AdvancedView.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
+- Summary: Coalesce device-count label updates and selected-device panel refreshes. During large loads, repeated selection events now collapse into one refresh, avoiding repeated synchronous classification and AI knowledge database access while keeping the panel matched to the latest selection. Advanced the synchronized application version from 2.8 to 2.9.
+- Verification: Release x86 rebuild passed (0 errors, 4 existing warnings) to `UniversalScanner/bin/x86/Release-2.9/` because the running 2.8 executable is in use. Deep Code reviewed the coalesced count and selection refreshes; `git diff --check` passed. Source review confirmed selected-device refresh synchronously classifies and accesses the AI database, so selection bursts now collapse to the latest state. The current 2.8 process remains hung on its UI thread, so no live 481-device recovery test has been performed with 2.9.
+- Commit: 7c4ef504163aa1ad29ff53b80af913b9e733a513
+
 [2026-10-24] fix: restore readable brand colors and speed up large discovery lists; advance version to 2.8
 - Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/UniversalScanner.AdvancedView.cs, UniversalScanner/UniversalScanner.Designer.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
 - Summary: Restored recognizable protocol brand colors with theme-aware contrast adjustment and stable fallback colors for neutral source colors. Removed per-paint style mutation and applies row styling when rows are added or bound data changes. Theme refresh restores readable AI-override text and backgrounds. Reworked AI override and auto-learn updates into 32-row UI batches, re-applies overrides after scanner enrichment, marshals binding notifications to the UI thread, and persists learned fingerprints off the UI thread. Advanced the synchronized application version from 2.7 to 2.8.

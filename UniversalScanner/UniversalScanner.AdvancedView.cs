@@ -40,6 +40,8 @@ namespace UniversalScanner
         private bool advancedAutoLearnSummaryVisible;
         private bool advancedExplicitSaveStatus;
         private DateTime advancedExplicitSaveStatusUtc;
+        // SelectionChanged and its deferred callback both run on the WinForms UI thread.
+        private bool advancedSelectedPanelRefreshQueued;
         private const string BrandOverrideDisplaySuffix = " [AI Override]";
         private readonly KnowledgeBase aiKnowledgeBase = new KnowledgeBase();
         private readonly DeviceClassifier aiDeviceClassifier = new DeviceClassifier();
@@ -466,6 +468,27 @@ namespace UniversalScanner
                 UpdateFingerprintSaveStatus(fingerprint);
 
             UpdateAdvancedToolsAvailability();
+        }
+
+        private void QueueAdvancedSelectedDevicePanelRefresh()
+        {
+            if (advancedSelectedPanelRefreshQueued || IsDisposed || !IsHandleCreated)
+                return;
+
+            advancedSelectedPanelRefreshQueued = true;
+            try
+            {
+                BeginInvoke(new Action(() =>
+                {
+                    advancedSelectedPanelRefreshQueued = false;
+                    if (!IsDisposed && dataGridView1 != null && !dataGridView1.IsDisposed)
+                        UpdateAdvancedSelectedDevicePanel();
+                }));
+            }
+            catch (InvalidOperationException)
+            {
+                advancedSelectedPanelRefreshQueued = false;
+            }
         }
 
         private void saveSelectedFingerprintButton_Click(object sender, EventArgs e)
