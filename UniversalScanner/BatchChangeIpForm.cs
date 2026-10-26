@@ -76,7 +76,12 @@ namespace UniversalScanner
             AddLabel("Admin Password:", leftLabel, top);
             passwordBox = AddBox(leftBox, top, false);
             passwordBox.UseSystemPasswordChar = true;
-            ApplyUniversalLoginIfAvailable(preserveDefaultUsername: string.Equals(usernameBox.Text, "admin", StringComparison.OrdinalIgnoreCase));
+            // Use the saved account for ordinary camera batches. Keep protocol-specific
+            // service/root defaults for Bosch and Axis batches.
+            bool preserveProtocolUsername =
+                string.Equals(usernameBox.Text, "service", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(usernameBox.Text, "root", StringComparison.OrdinalIgnoreCase);
+            ApplyUniversalLoginIfAvailable(preserveDefaultUsername: preserveProtocolUsername);
 
             showPasswordBox = new CheckBox();
             showPasswordBox.Left = leftBox;

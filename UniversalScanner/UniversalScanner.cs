@@ -2698,7 +2698,7 @@ namespace UniversalScanner
             using (ModernAboutDialog aboutDialog = new ModernAboutDialog(
                 versionInfo.ProductName,
                 versionInfo.FileMajorPart + "." + versionInfo.FileMinorPart,
-                "October 24, 2026",
+                "October 26, 2026",
                 versionInfo.LegalCopyright))
             {
                 aboutDialog.ShowDialog(this);
@@ -4487,6 +4487,7 @@ namespace UniversalScanner
             List<string> authRejectedIps = new List<string>();
             bool allowSingleRowHikvisionProbe = rows.Count == 1;
             bool shouldCheckDahuaRtspAuth = rows.Any(row => IsDahuaRow(GetDataRowFromGridRow(row)));
+            bool shouldCheckHoneywellRtspAuth = rows.Any(row => IsHoneywellRow(GetDataRowFromGridRow(row)));
 
             foreach (DataGridViewRow row in rows)
             {
@@ -4497,7 +4498,7 @@ namespace UniversalScanner
             // Hikvision/NVR firmwares reject OPTIONS even when VLC can play the
             // stream with the same credentials.
             string rejectedIp = authRejectedIps.FirstOrDefault() ?? "";
-            if (string.IsNullOrWhiteSpace(rejectedIp) && shouldCheckDahuaRtspAuth)
+            if (string.IsNullOrWhiteSpace(rejectedIp) && (shouldCheckDahuaRtspAuth || shouldCheckHoneywellRtspAuth))
                 rejectedIp = await FindRejectedRtspCredentialIpAsync(streams, username, password);
 
             if (!string.IsNullOrWhiteSpace(rejectedIp))
@@ -4516,7 +4517,7 @@ namespace UniversalScanner
                 }
 
                 rejectedIp = authRejectedIps.FirstOrDefault() ?? "";
-                if (string.IsNullOrWhiteSpace(rejectedIp) && shouldCheckDahuaRtspAuth)
+                if (string.IsNullOrWhiteSpace(rejectedIp) && (shouldCheckDahuaRtspAuth || shouldCheckHoneywellRtspAuth))
                     rejectedIp = await FindRejectedRtspCredentialIpAsync(streams, username, password);
 
                 if (!string.IsNullOrWhiteSpace(rejectedIp))
