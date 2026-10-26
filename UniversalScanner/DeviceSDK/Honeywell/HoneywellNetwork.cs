@@ -28,6 +28,7 @@ namespace UniversalScanner.DeviceSDK.Honeywell
             Action<string> statusCallback = null)
         {
             Exception onvifException = null;
+            bool networkSettingsApplied = false;
 
             try
             {
@@ -35,7 +36,7 @@ namespace UniversalScanner.DeviceSDK.Honeywell
                 statusCallback?.Invoke("Getting ONVIF network interfaces...");
 
                 string getIfBody = "<GetNetworkInterfaces xmlns=\"http://www.onvif.org/ver10/device/wsdl\"/>";
-                string getIfResponse = await OnvifSoap.SendAsync(currentIp, username, password, getIfBody);
+                string getIfResponse = await OnvifSoap.SendAsync(currentIp, username, password, getIfBody, "/onvif/device_service", null, true);
                 ThrowIfSoapFault(getIfResponse, "read network interfaces");
 
                 string token = ExtractInterfaceToken(getIfResponse);
@@ -62,8 +63,9 @@ namespace UniversalScanner.DeviceSDK.Honeywell
                     "</NetworkInterface>" +
                     "</SetNetworkInterfaces>";
 
-                string setIfResponse = await OnvifSoap.SendAsync(currentIp, username, password, setIfBody);
+                string setIfResponse = await OnvifSoap.SendAsync(currentIp, username, password, setIfBody, "/onvif/device_service", null, true);
                 ThrowIfSoapFault(setIfResponse, "apply network interface");
+                networkSettingsApplied = true;
 
                 // ── Step 3: SetNetworkDefaultGateway ─────────────────────────────────
                 if (!string.IsNullOrWhiteSpace(gateway))
@@ -75,7 +77,7 @@ namespace UniversalScanner.DeviceSDK.Honeywell
                         "<IPv4Address>" + SecurityElement.Escape(gateway) + "</IPv4Address>" +
                         "</SetNetworkDefaultGateway>";
 
-                    string setGwResponse = await OnvifSoap.SendAsync(currentIp, username, password, setGwBody);
+                    string setGwResponse = await OnvifSoap.SendAsync(currentIp, username, password, setGwBody, "/onvif/device_service", null, true);
                     ThrowIfSoapFault(setGwResponse, "set default gateway");
                 }
 
@@ -95,7 +97,8 @@ namespace UniversalScanner.DeviceSDK.Honeywell
                         password,
                         rebootBody,
                         "/onvif/device_service",
-                        "http://www.onvif.org/ver10/device/wsdl/SystemReboot");
+                        "http://www.onvif.org/ver10/device/wsdl/SystemReboot",
+                        true);
                 }
                 catch { /* expected: connection reset on fast-reboot devices */ }
 
@@ -133,6 +136,13 @@ namespace UniversalScanner.DeviceSDK.Honeywell
                     subnetMask,
                     gateway,
                     out message));
+
+                if (!ok && !networkSettingsApplied &&
+                    (onvifException is UnauthorizedAccessException ||
+                     message.IndexOf("legacy login rejected", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    message = "HONEYWELL_CREDENTIALS_REJECTED: " + message;
+                }
 
                 statusCallback?.Invoke(message);
                 return ok;
@@ -211,13 +221,29 @@ namespace UniversalScanner.DeviceSDK.Honeywell
                 foreach (XmlElement el in doc.GetElementsByTagName("*"))
                 {
                     if (el.LocalName.Equals("Fault", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string faultText = el.InnerText ?? "";
+                        if (ContainsAuthenticationFault(faultText))
+                            throw new UnauthorizedAccessException("Honeywell ONVIF authentication rejected while trying to " + action + ".");
+
                         throw new InvalidOperationException("ONVIF rejected request to " + action + ".");
+                    }
                 }
             }
             catch (XmlException ex)
             {
                 throw new InvalidOperationException("Invalid ONVIF response while trying to " + action + ": " + ex.Message);
             }
+        }
+
+        private static bool ContainsAuthenticationFault(string faultText)
+        {
+            return !string.IsNullOrWhiteSpace(faultText) &&
+                   (faultText.IndexOf("NotAuthorized", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    faultText.IndexOf("Unauthorized", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    faultText.IndexOf("FailedAuthentication", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    faultText.IndexOf("InvalidSecurity", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    faultText.IndexOf("InvalidUserName", StringComparison.OrdinalIgnoreCase) >= 0);
         }
     }
 }

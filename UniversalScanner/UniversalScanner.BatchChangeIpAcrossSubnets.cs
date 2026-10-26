@@ -37,7 +37,19 @@ namespace UniversalScanner
                 return;
             }
 
-            using (BatchChangeIpForm form = new BatchChangeIpForm(rows.Count))
+            ApplyAiBrandOverridesToSelectedRowsForAction();
+            rows = GetSelectedDeviceRows();
+            if (rows.Count == 0)
+                return;
+
+            if (rows.Any(row => IsDahuaSwitchRow(GetDataRowFromGridRow(row))))
+                return;
+
+            bool batchIsBoschOnly = rows.All(row => IsBoschRow(GetDataRowFromGridRow(row)));
+            bool batchIsAxisOnly = rows.All(row => IsAxisRow(GetDataRowFromGridRow(row)));
+            string defaultUsername = batchIsBoschOnly ? "service" : batchIsAxisOnly ? "root" : "admin";
+
+            using (BatchChangeIpForm form = new BatchChangeIpForm(rows.Count, defaultUsername))
             {
                 if (form.ShowDialog(this) != DialogResult.OK)
                     return;

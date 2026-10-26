@@ -4807,6 +4807,88 @@ namespace UniversalScanner
             }
         }
 
+        private bool PromptForHoneywellBatchCredentials(string ip, ref string username, ref string password)
+        {
+            using (Form dialog = new Form())
+            using (Label messageLabel = new Label())
+            using (Label usernameLabel = new Label())
+            using (TextBox usernameBox = new TextBox())
+            using (Label passwordLabel = new Label())
+            using (TextBox passwordBox = new TextBox())
+            using (CheckBox showPasswordBox = new CheckBox())
+            using (Button retryButton = new Button())
+            using (Button cancelButton = new Button())
+            {
+                dialog.Text = "Honeywell Batch IP";
+                dialog.StartPosition = FormStartPosition.CenterParent;
+                dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                dialog.MaximizeBox = false;
+                dialog.MinimizeBox = false;
+                dialog.ClientSize = new Size(430, 210);
+
+                messageLabel.Text = "Honeywell rejected the batch credentials for " + ip + ". Enter credentials to retry this camera.";
+                messageLabel.SetBounds(18, 18, 395, 40);
+
+                usernameLabel.Text = "Username:";
+                usernameLabel.SetBounds(18, 72, 105, 24);
+                usernameBox.SetBounds(130, 68, 270, 24);
+                usernameBox.Text = username ?? "";
+
+                passwordLabel.Text = "Password:";
+                passwordLabel.SetBounds(18, 108, 105, 24);
+                passwordBox.SetBounds(130, 104, 270, 24);
+                passwordBox.UseSystemPasswordChar = true;
+                passwordBox.Text = password ?? "";
+
+                showPasswordBox.Text = "Show password";
+                showPasswordBox.SetBounds(130, 134, 160, 24);
+                showPasswordBox.CheckedChanged += (sender, args) => passwordBox.UseSystemPasswordChar = !showPasswordBox.Checked;
+
+                retryButton.Text = "Retry Camera";
+                retryButton.SetBounds(220, 166, 90, 28);
+                retryButton.Click += (sender, args) =>
+                {
+                    if (string.IsNullOrWhiteSpace(usernameBox.Text) || string.IsNullOrWhiteSpace(passwordBox.Text))
+                    {
+                        MessageBox.Show(dialog, "Username and password are required.", dialog.Text,
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    dialog.DialogResult = DialogResult.OK;
+                    dialog.Close();
+                };
+
+                cancelButton.Text = "Skip Camera";
+                cancelButton.SetBounds(320, 166, 80, 28);
+                cancelButton.DialogResult = DialogResult.Cancel;
+
+                dialog.Controls.Add(messageLabel);
+                dialog.Controls.Add(usernameLabel);
+                dialog.Controls.Add(usernameBox);
+                dialog.Controls.Add(passwordLabel);
+                dialog.Controls.Add(passwordBox);
+                dialog.Controls.Add(showPasswordBox);
+                dialog.Controls.Add(retryButton);
+                dialog.Controls.Add(cancelButton);
+                dialog.AcceptButton = retryButton;
+                dialog.CancelButton = cancelButton;
+
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                    return false;
+
+                username = usernameBox.Text.Trim();
+                password = passwordBox.Text;
+                return true;
+            }
+        }
+
+        private static bool IsHoneywellCredentialsRejected(string message)
+        {
+            return !string.IsNullOrWhiteSpace(message) &&
+                   message.IndexOf("HONEYWELL_CREDENTIALS_REJECTED:", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         private void ArrangeVlcWindowsAsMosaic(IList<Process> processes)
         {
             if (processes == null || processes.Count == 0)
@@ -6363,20 +6445,50 @@ namespace UniversalScanner
                         }
                         else if (isHoneywell)
                         {
+                            string honeywellUsername = form.Username;
+                            string honeywellPassword = form.Password;
                             var honeywellResult = await ChangeIpForm.ExecuteChangeIpCoreAsync(
                                 "Honeywell",
                                 dataRow?[(int)Columns.Type]?.ToString() ?? "",
                                 oldIp,
-                                form.Username,
-                                form.Password,
+                                honeywellUsername,
+                                honeywellPassword,
                                 newIp,
                                 form.SubnetMask,
                                 form.Gateway,
                                 false,
                                 status => { message = status; });
 
+                            string honeywellStatusMessage = message;
+                            if (!honeywellResult.Success && IsHoneywellCredentialsRejected(honeywellStatusMessage))
+                            {
+                                if (!PromptForHoneywellBatchCredentials(oldIp, ref honeywellUsername, ref honeywellPassword))
+                                {
+                                    skipped++;
+                                    row.Cells[(int)Columns.Ping].Value = "IP change skipped - credentials not entered";
+                                    await ShowStatusAsync("Skipped Honeywell IP change for " + oldIp + ": credentials were not entered.", 3000);
+                                    continue;
+                                }
+
+                                await ShowStatusAsync("Retrying Honeywell IP change for " + oldIp + " with the entered credentials...");
+                                honeywellResult = await ChangeIpForm.ExecuteChangeIpCoreAsync(
+                                    "Honeywell",
+                                    dataRow?[(int)Columns.Type]?.ToString() ?? "",
+                                    oldIp,
+                                    honeywellUsername,
+                                    honeywellPassword,
+                                    newIp,
+                                    form.SubnetMask,
+                                    form.Gateway,
+                                    false,
+                                    status => { message = status; });
+                                honeywellStatusMessage = message;
+                            }
+
                             ok = honeywellResult.Success;
-                            message = honeywellResult.Message;
+                            message = !ok && IsHoneywellCredentialsRejected(honeywellStatusMessage)
+                                ? honeywellStatusMessage
+                                : honeywellResult.Message;
                         }
                         else if (isUniview)
                         {

@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Net.Http;
 using System.Security;
 using System.Security.Cryptography;
@@ -30,7 +31,7 @@ namespace UniversalScanner.DeviceSDK.Honeywell
             string password,
             string bodyXml)
         {
-            return await SendAsync(ip, username, password, bodyXml, "/onvif/device_service");
+            return await SendAsync(ip, username, password, bodyXml, "/onvif/device_service", null, false);
         }
 
         public static async Task<string> SendAsync(
@@ -39,7 +40,8 @@ namespace UniversalScanner.DeviceSDK.Honeywell
             string password,
             string bodyXml,
             string endpoint,
-            string soapAction = null)
+            string soapAction = null,
+            bool throwOnAuthFailure = false)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             string created = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
@@ -111,6 +113,9 @@ namespace UniversalScanner.DeviceSDK.Honeywell
                     HttpResponseMessage response = await _http.PostAsync(url, content);
                     statusCode = $"{(int)response.StatusCode} {response.ReasonPhrase}";
                     responseString = await response.Content.ReadAsStringAsync();
+
+                    if (throwOnAuthFailure && (response.StatusCode == HttpStatusCode.Unauthorized || response.StatusCode == HttpStatusCode.Forbidden))
+                        throw new UnauthorizedAccessException("ONVIF authentication rejected (HTTP " + (int)response.StatusCode + ").");
                     
                     if (responseString.Contains("Fault>") || responseString.Contains("faultcode"))
                     {
@@ -128,7 +133,8 @@ namespace UniversalScanner.DeviceSDK.Honeywell
             }
             catch (Exception ex)
             {
-                statusCode = "Exception";
+                if (string.IsNullOrWhiteSpace(statusCode))
+                    statusCode = "Exception";
                 soapFault = ex.Message;
                 throw;
             }
