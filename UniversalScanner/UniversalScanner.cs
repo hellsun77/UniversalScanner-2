@@ -4484,52 +4484,59 @@ namespace UniversalScanner
 
             List<VlcMosaicStream> streams = new List<VlcMosaicStream>();
             List<string> skippedIps = new List<string>();
-            List<string> authRejectedIps = new List<string>();
+            List<string> authenticationFailedIps = new List<string>();
             bool allowSingleRowHikvisionProbe = rows.Count == 1;
-            bool shouldCheckDahuaRtspAuth = rows.Any(row => IsDahuaRow(GetDataRowFromGridRow(row)));
-            bool shouldCheckHoneywellRtspAuth = rows.Any(row => IsHoneywellRow(GetDataRowFromGridRow(row)));
 
             foreach (DataGridViewRow row in rows)
             {
-                await AddVlcStreamsForRowAsync(row, streamChoice, username, password, allowSingleRowHikvisionProbe, streams, skippedIps, authRejectedIps);
-            }
+                List<VlcMosaicStream> rowStreams = new List<VlcMosaicStream>();
+                List<string> rowSkippedIps = new List<string>();
+                List<string> rowAuthRejectedIps = new List<string>();
+                string rowUsername = username;
+                string rowPassword = password;
 
-            // Do not block VLC mosaic from the RTSP OPTIONS pre-check. Several
-            // Hikvision/NVR firmwares reject OPTIONS even when VLC can play the
-            // stream with the same credentials.
-            string rejectedIp = authRejectedIps.FirstOrDefault() ?? "";
-            if (string.IsNullOrWhiteSpace(rejectedIp) && (shouldCheckDahuaRtspAuth || shouldCheckHoneywellRtspAuth))
-                rejectedIp = await FindRejectedRtspCredentialIpAsync(streams, username, password);
+                await AddVlcStreamsForRowAsync(row, streamChoice, rowUsername, rowPassword, allowSingleRowHikvisionProbe,
+                    rowStreams, rowSkippedIps, rowAuthRejectedIps);
 
-            if (!string.IsNullOrWhiteSpace(rejectedIp))
-            {
-                if (!PromptForVlcCredentials(rejectedIp, ref username, ref password))
-                    return;
-
-                UniversalLoginManager.SetUniversalCredentials(username, password);
-                streams.Clear();
-                skippedIps.Clear();
-                authRejectedIps.Clear();
-
-                foreach (DataGridViewRow row in rows)
-                {
-                    await AddVlcStreamsForRowAsync(row, streamChoice, username, password, allowSingleRowHikvisionProbe, streams, skippedIps, authRejectedIps);
-                }
-
-                rejectedIp = authRejectedIps.FirstOrDefault() ?? "";
-                if (string.IsNullOrWhiteSpace(rejectedIp) && (shouldCheckDahuaRtspAuth || shouldCheckHoneywellRtspAuth))
-                    rejectedIp = await FindRejectedRtspCredentialIpAsync(streams, username, password);
-
+                string rejectedIp = rowAuthRejectedIps.FirstOrDefault() ??
+                    await FindRejectedRtspCredentialIpAsync(rowStreams, rowUsername, rowPassword);
                 if (!string.IsNullOrWhiteSpace(rejectedIp))
                 {
-                    MessageBox.Show(this, "Authentication failed for " + rejectedIp + ". Please check the Universal Login username and password.", "Show Selected by VLC",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    if (!PromptForVlcCredentials(rejectedIp, ref rowUsername, ref rowPassword))
+                        return;
+
+                    rowStreams.Clear();
+                    rowAuthRejectedIps.Clear();
+                    await AddVlcStreamsForRowAsync(row, streamChoice, rowUsername, rowPassword, allowSingleRowHikvisionProbe,
+                        rowStreams, rowSkippedIps, rowAuthRejectedIps);
+
+                    rejectedIp = rowAuthRejectedIps.FirstOrDefault() ??
+                        await FindRejectedRtspCredentialIpAsync(rowStreams, rowUsername, rowPassword);
+                    if (!string.IsNullOrWhiteSpace(rejectedIp))
+                    {
+                        authenticationFailedIps.Add(rejectedIp);
+                        continue;
+                    }
                 }
+
+                streams.AddRange(rowStreams);
+                skippedIps.AddRange(rowSkippedIps);
             }
 
             if (streams.Count == 0)
             {
+                if (authenticationFailedIps.Count > 0)
+                {
+                    MessageBox.Show(this,
+                        "The selected cameras rejected the entered credentials: " +
+                        string.Join(", ", authenticationFailedIps.Distinct(StringComparer.OrdinalIgnoreCase)) +
+                        (skippedIps.Count > 0 ? "\r\nInvalid IPs: " + string.Join(", ", skippedIps) : ""),
+                        "Show Selected by VLC",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
                 MessageBox.Show(this, "No selected devices have a valid IPv4 address.", "Show Selected by VLC",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
@@ -4543,6 +4550,9 @@ namespace UniversalScanner
                 string status = "Opening VLC mosaic for " + streams.Count + " selected device" + (streams.Count == 1 ? "" : "s") + "...";
                 if (skippedIps.Count > 0)
                     status += " Skipped invalid IPs: " + string.Join(", ", skippedIps);
+                if (authenticationFailedIps.Count > 0)
+                    status += " Skipped cameras with rejected credentials: " +
+                        string.Join(", ", authenticationFailedIps.Distinct(StringComparer.OrdinalIgnoreCase));
                 _ = ShowStatusAsync(status, 4000);
             }
             catch (Exception ex)
@@ -4683,6 +4693,7 @@ namespace UniversalScanner
 
         private async Task<string> FindRejectedRtspCredentialIpAsync(IEnumerable<VlcMosaicStream> streams, string username, string password)
         {
+            HashSet<string> checkedHosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (VlcMosaicStream stream in streams)
             {
                 string probeUrl = stream?.ProbeUrl;
@@ -4692,9 +4703,13 @@ namespace UniversalScanner
                 if (string.IsNullOrWhiteSpace(probeUrl))
                     continue;
 
+                Uri probeUri;
+                if (!Uri.TryCreate(probeUrl, UriKind.Absolute, out probeUri) || !checkedHosts.Add(probeUri.Host))
+                    continue;
+
                 try
                 {
-                    if (await RtspLiveViewForm.IsRtspAuthenticationRejectedAsync(probeUrl, username, password))
+                    if (await RtspLiveViewForm.IsRtspStreamAuthenticationRejectedAsync(probeUrl, username, password))
                     {
                         Uri uri = new Uri(probeUrl);
                         return uri.Host;
@@ -4727,7 +4742,7 @@ namespace UniversalScanner
                 dialog.MinimizeBox = false;
                 dialog.ClientSize = new Size(430, 210);
 
-                messageLabel.Text = "Universal Login was rejected by " + ip + ". Enter the camera username and password.";
+                messageLabel.Text = "The credentials were rejected by camera " + ip + ". Enter this camera's username and password.";
                 messageLabel.Left = 18;
                 messageLabel.Top = 18;
                 messageLabel.Width = 390;

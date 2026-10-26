@@ -621,17 +621,22 @@ namespace UniversalScanner
 
         public static async System.Threading.Tasks.Task<bool> IsRtspAuthenticationRejectedAsync(string url, string username, string password)
         {
-            return await CheckRtspCredentialsAsync(url, username, password) == RtspCredentialCheck.Rejected;
+            return await CheckRtspCredentialsAsync(url, username, password, "OPTIONS") == RtspCredentialCheck.Rejected;
         }
 
-        private static async System.Threading.Tasks.Task<RtspCredentialCheck> CheckRtspCredentialsAsync(string url, string username, string password)
+        public static async System.Threading.Tasks.Task<bool> IsRtspStreamAuthenticationRejectedAsync(string url, string username, string password)
+        {
+            return await CheckRtspCredentialsAsync(url, username, password, "DESCRIBE") == RtspCredentialCheck.Rejected;
+        }
+
+        private static async System.Threading.Tasks.Task<RtspCredentialCheck> CheckRtspCredentialsAsync(string url, string username, string password, string method)
         {
             try
             {
                 Uri uri = new Uri(url);
                 int port = uri.Port > 0 ? uri.Port : 554;
 
-                string firstResponse = await SendRtspOptionsAsync(uri.Host, port, url, null);
+                string firstResponse = await SendRtspRequestAsync(uri.Host, port, url, method, null);
                 int firstStatus = ParseRtspStatusCode(firstResponse);
 
                 if (firstStatus >= 200 && firstStatus < 300)
@@ -644,11 +649,11 @@ namespace UniversalScanner
                 if (string.IsNullOrWhiteSpace(authenticate))
                     return RtspCredentialCheck.Unknown;
 
-                string authorization = BuildAuthorizationHeader(authenticate, username, password, "OPTIONS", url);
+                string authorization = BuildAuthorizationHeader(authenticate, username, password, method, url);
                 if (string.IsNullOrWhiteSpace(authorization))
                     return RtspCredentialCheck.Unknown;
 
-                string secondResponse = await SendRtspOptionsAsync(uri.Host, port, url, authorization);
+                string secondResponse = await SendRtspRequestAsync(uri.Host, port, url, method, authorization);
                 int secondStatus = ParseRtspStatusCode(secondResponse);
 
                 if (secondStatus >= 200 && secondStatus < 300)
@@ -664,7 +669,7 @@ namespace UniversalScanner
             return RtspCredentialCheck.Unknown;
         }
 
-        private static async System.Threading.Tasks.Task<string> SendRtspOptionsAsync(string host, int port, string url, string authorization)
+        private static async System.Threading.Tasks.Task<string> SendRtspRequestAsync(string host, int port, string url, string method, string authorization)
         {
             using (TcpClient client = new TcpClient())
             {
@@ -678,9 +683,12 @@ namespace UniversalScanner
                     stream.WriteTimeout = 1800;
 
                     string request =
-                        "OPTIONS " + url + " RTSP/1.0\r\n" +
+                        method + " " + url + " RTSP/1.0\r\n" +
                         "CSeq: 1\r\n" +
                         "User-Agent: Universal Scanner\r\n";
+
+                    if (string.Equals(method, "DESCRIBE", StringComparison.OrdinalIgnoreCase))
+                        request += "Accept: application/sdp\r\n";
 
                     if (!string.IsNullOrWhiteSpace(authorization))
                         request += "Authorization: " + authorization + "\r\n";
