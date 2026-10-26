@@ -22,7 +22,7 @@ Entries
 - Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/RtspLiveViewForm.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
 - Summary: Build mosaic streams per selected camera and test each camera's RTSP credentials independently with DESCRIBE. Prompt for credentials only when that camera definitely rejects the supplied credentials, keep its credentials on its own streams, and continue opening other cameras if one still rejects. Inconclusive RTSP responses do not trigger a prompt.
 - Verification: Deep Code plan review was given eight minutes but returned no feedback. A progress update was requested during diff review; final non-mutating diff review found no blocking issues. Release x86 rebuild passed with 0 errors and 4 existing warnings. Live VLC playback with cameras using different credentials requires device runtime verification. About build date is October 26, 2026.
-- Commit: 3face6df1a9e29946193e1047528c8bc2251eaf3
+- Commit: 2b02f78bf2e5f1dcbc9f859b7f5924b81972bcd3
 
 [2026-10-26] fix: use saved credentials for Honeywell batch changes and prompt on rejected mosaic credentials; advance version to 2.92
 - Files changed: UniversalScanner/BatchChangeIpForm.cs, UniversalScanner/UniversalScanner.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
