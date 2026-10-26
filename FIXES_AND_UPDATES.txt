@@ -28,7 +28,7 @@ Entries
 - Files changed: UniversalScanner/BatchChangeIpForm.cs, UniversalScanner/UniversalScanner.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
 - Summary: Ordinary batch IP changes now prefill the saved Universal Login username while Bosch and Axis keep their required service/root defaults. Honeywell VLC mosaic streams now receive the RTSP authentication rejection check so invalid saved credentials can trigger the existing credential prompt; inconclusive/unsupported OPTIONS responses continue without blocking playback.
 - Verification: Deep Code plan and diff review stalled without returning feedback; manual diff review and Release x86 rebuild pending. Live Honeywell IP-change and VLC credential-prompt behavior require camera/VLC runtime verification. About build date is October 26, 2026.
-- Commit: 70c048cafc87ca21fd6378a099712d241bf59dcd
+- Commit: ecec1f0a94abfc3b815b9d15a3d7da201421587b
 
 [2026-10-24] fix: dispatch discovery startup off the UI thread; advance version to 2.91
 - Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
