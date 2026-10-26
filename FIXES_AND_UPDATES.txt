@@ -22,7 +22,7 @@ Entries
 - Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/UniversalScanner.BatchChangeIpAcrossSubnets.cs, UniversalScanner/DeviceSDK/Honeywell/HoneywellNetwork.cs, UniversalScanner/DeviceSDK/Honeywell/OnvifSoap.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
 - Summary: In regular batch IP change, when Honeywell explicitly rejects credentials before accepting network settings, prompt for credentials for that camera and retry only its IP change. Do not offer this retry for timeouts/configuration failures or after settings may have been applied. Across-subnet batches preserve Bosch service and Axis root defaults for homogeneous selections and retain the Dahua-switch guard.
 - Verification: The Deep Code plan command did not return within the eight-minute review window; a separate source-status review traced the authentication signals. Final Deep Code diff review approved with no blocking findings after scoping HTTP auth exceptions to Honeywell network changes. Release x86 rebuild passed with 0 errors and 4 existing warnings; git diff --check passed. Live Honeywell device verification remains required. About build date is October 26, 2026.
-- Commit: 3ecbdbcf8a61568634dda2a8a8c37c633a5274e2
+- Commit: bbf97f1aae8c7d31859095e31575cb71b897c33df8a61568634dda2a8a8c37c633a5274e2
 
 [2026-10-26] fix: prompt for distinct credentials per VLC mosaic camera; advance version to 2.93
 - Files changed: UniversalScanner/UniversalScanner.cs, UniversalScanner/RtspLiveViewForm.cs, UniversalScanner/Properties/AssemblyInfo.cs, UniversalScanner/SplashForm.cs, README.md, FIXES_AND_UPDATES.txt
